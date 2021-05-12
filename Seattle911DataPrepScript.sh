@@ -18,11 +18,12 @@
 
 #Creating the data directory
 mkdir data
+cd data/
 #We are assigning the default values for options variables
-DOWDIR="/home/spoonmediabigdata/Downloads/archive/Seattle_Police_Department_911_Incident_Response.csv";
+DOWDIR="~/Downloads/archive/Seattle_Police_Department_911_Incident_Response.csv";
 RESSIZE_MB=80;
-RESDIR="data/SeattlePD911IR_"$RESSIZE_MB"_MB.csv"
-RESZIP="data/SeattlePD911IR_"$RESSIZE_MB"_MB.zip"
+RESDIR="SeattlePD911IR_"$RESSIZE_MB"_MB.csv"
+RESZIP="SeattlePD911IR_"$RESSIZE_MB"_MB.zip"
 #We are also assigning the default values for temp variables to be used for the script
 now=$(date +'%Y%m%d%I%M%S');
 TEMPLOGFILE="temp"$now".log";
@@ -59,5 +60,5 @@ head -n 1 $DOWDIR > $RESDIR
 shuf -n $TOTSHUFROW $DOWDIR >> $RESDIR
 #zip the resulting file
 echo "Zipping file: "$RESDIR" into "$RESZIP
-tar -czvf $RESZIP $RESDIR
+zip $RESZIP $RESDIR
 rm $RESDIR
