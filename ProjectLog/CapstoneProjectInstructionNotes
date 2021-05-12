@@ -1,0 +1,81 @@
+For this project, you will be applying machine learning techniques that go BEYOND standard linear regression.
+The UCI Machine Learning Repository and Kaggle are good places to seek out a dataset. Kaggle also maintains a curated list of datasets that are cleaned and ready for machine learning analyses (Lets choose Kaggle then)
+Your dataset must be automatically downloaded in your code or included with your submission
+
+The ability to clearly communicate the process and insights gained from an analysis is an important skill for data scientists. You will submit a report that documents your analysis and presents your findings, with supporting statistics and figures. The report must be written in English and uploaded as both a PDF document and an Rmd file. Although the exact format is up to you, the report should include the following at a minimum:
+
+	an introduction/overview/executive summary section that describes the dataset and variables, and summarizes the goal of the project and key steps that were performed;
+	a methods/analysis section that explains the process and techniques used, including data cleaning, data exploration and visualization, insights gained, and your modeling approaches (you must use at least two different models or algorithms);
+	a results section that presents the modeling results and discusses the model performance; and
+a conclusion section that gives a brief summary of the report, its potential impact, its limitations, and future work.
+
+Data: https://www.kaggle.com/sohier/seattle-police-department-911-incident-response
+362MB csv file
+-----------------------------------------------------------------------------------------
+########################################
+### Khaliun.B 2021.05.11
+### Today, we are starting the Seattle police department 911 incident response
+########################################
+--- First, we will determine for ourselves few points with some questions
+(?) Why are we doing this? To answer this question, I am including my own post in Edx Capstone course platform, which I had posted before starting the project
+Hello all, I hope you are doing well. I had recently started choose your own project with "## Mapping and Prediction" Seattle Police Department 911 Incident Response public data from Kaggle. I find it a very interesting matter because I believe we could find pattern among the same incidents while analyzing and could predict seriousness of the issue even if the caller is unable to articulate the matter properly. Thus, we are reducing the negative effects of pranking 911 at least. And who knows, what I can find. And if I have a chance, I would apply the method to our 103 - Mongolian medical emergency call center. I think this would be very good thing to do. However I would very much appreciate if I had someone to discuss my points of view while analyzing data and to tell me if they are viable and evaluate my code and report before submission (a lab partner). I would to the same for your own project, and to be safe from violating the edx honor code, we should be choosing other data sets. Thank you very much.
+(?) What are we predicting?
+	(?) Practical application of prediction?
+	(?) Further development possibilities?
+	(?) What is success metric/value?
+(?) How are we doing it?
+	(?) R the metrics continuous or class type? 
+--- Here is some thoughts which I include to log. Most of them answer to question (?) How are we doing it?
+(!) By analysis we are determining why are the results as they are
+(!) Data Prep ideas:
+	(?) Escalation degree: Evaluate difference between initial and resulting records
+		(?) Degree -> (?) Escalated/Same etc (What were the actual solutions to initial described problems?)
+	(?) Mapping pattern in the surge of the same incidents by location (Group by incident type)
+		(?) Would kmeans clustering work in this? Let us see
+		(!) Analyze the relation between incidents & if they have been moving in some pattern. And how do we do that?:
+				(!) Group by incident type, timestamp, location
+				(!) Create timelapse plot
+				(?) Do we need need PCA or SVD? We will use matrix anyway
+(!) Apply back 2D initial data of course
+(!) Use Random forest and Varimp
+(!) Use best tune
+---Setting up the project using Github repository https://github.com/khaliunb/Seattle911PDProject.git
+---in R Terminal, go to main project folder HarvardX/Projects (optional)
+cd Desktop/HarvardX/Projects
+---username: khaliunb; email: khaliun83@yahoo.com
+git config --global user.name "khaliunb"
+git config --global user.mail "khaliun83@yahoo.com"
+---clone the repository to set up the project
+git clone https://github.com/khaliunb/Seattle911PDProject.git
+---go to cloned directory
+cd Seattle911PDProject
+---create new project using existing Seattle911PDProject directory
+File>New Project> Exising Directory
+--- Notes on data
+(!) We are not using the full Seattle_Police_Department_911_Incident_Response.csv file for the project because we have to put it in github resository and we have 100Mb limit. Instead, we are preparing our own file Seattle_Police_Department_911_Incident_Response_80MB.csv file for the project. To do this:
+	(!) We are using Linux commandline to pre-process the file and running "shuf" command through the initial file. We are not trimming the columns, just lines. In the Terminal in R, typing:
+	# wc ~/Downloads/archive/Seattle_Police_Department_911_Incident_Response.csv
+		1433854  24635705 380031486 Seattle_Police_Department_911_Incident_Response.csv
+	
+	(!) Then, we are uploading the file into github in data folder. This will make the data available for download.
+########################################
+### Khaliun.B 2021.05.12 15:46
+### We are proceeding with the data prep
+########################################
+---Created bash script to prepare sampled data file. And made the file an executable. Don't forget to change the original data path with -d option if running the script again 
+./Seattle911DataPrepScript.sh
+---Prepared the initial sampled data file. 95MB in size. SeattlePD911IR_80_MB.csv
+---Making the initial commit with the sampled data file. Hope this runs smoothly.
+---upload the files and folders with comment "Initial Commit for the Seattle PD 911 Incident Response project. Files Seattle911DataPrepScript.sh, Seattle911PDProject_Script.R, Seattle911PDProject_FinalReport.Rmd, data/SeattlePD911IR_80_MB.csv by Khaliun.B 2021.05.12 15:51"
+-1. Commit files
+-2. Push files
+--- Zipped the data to make data to be downloaded easier.
+---upload the zipped data file and Seattle911DataPrepScript.sh script with comment "Recommit with zipped data. Khaliun.B 2021.05.12 16:15"
+-1. Commit files
+-2. Push files 
+---upload the zipped data file and Seattle911DataPrepScript.sh script with comment "Recommit Data zip changes Khaliun.B 2021.05.12 16:51"
+-1. Commit files
+-2. Push files 
+---upload the Seattle911PDProject_Script.R script with comment "Commit initial data download and extract script Khaliun.B 2021.05.12 16:57"
+-1. Commit files
+-2. Push files 
