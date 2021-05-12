@@ -19,9 +19,10 @@
 #Creating the data directory
 mkdir data
 #We are assigning the default values for options variables
-DOWDIR="~/Downloads/Seattle_Police_Department_911_Incident_Response.csv";
+DOWDIR="/home/spoonmediabigdata/Downloads/archive/Seattle_Police_Department_911_Incident_Response.csv";
 RESSIZE_MB=80;
 RESDIR="data/SeattlePD911IR_"$RESSIZE_MB"_MB.csv"
+RESZIP="data/SeattlePD911IR_"$RESSIZE_MB"_MB.zip"
 #We are also assigning the default values for temp variables to be used for the script
 now=$(date +'%Y%m%d%I%M%S');
 TEMPLOGFILE="temp"$now".log";
@@ -56,3 +57,7 @@ rm $RESDIR
 echo "Sampling "$TOTSHUFROW" number of rows from file "$DOWDIR". Results will be stored in file: "$RESDIR
 head -n 1 $DOWDIR > $RESDIR
 shuf -n $TOTSHUFROW $DOWDIR >> $RESDIR
+#zip the resulting file
+echo "Zipping file: "$RESDIR" into "$RESZIP
+tar -czvf $RESZIP $RESDIR
+rm $RESDIR
