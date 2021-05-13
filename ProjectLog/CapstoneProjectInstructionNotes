@@ -24,8 +24,8 @@ Hello all, I hope you are doing well. I had recently started choose your own pro
 	(?) Further development possibilities?
 	(?) What is success metric/value?
 (?) How are we doing it?
-	(?) R the metrics continuous or class type? 
---- Here is some thoughts which I include to log. Most of them answer to question (?) How are we doing it?
+	(?) R the metrics continuous or class type?
+--- Here are some thoughts which I include to log. Most of them answer to question (?) How are we doing it?
 (!) By analysis we are determining why are the results as they are
 (!) Data Prep ideas:
 	(?) Escalation degree: Evaluate difference between initial and resulting records
@@ -77,5 +77,37 @@ File>New Project> Exising Directory
 -1. Commit files
 -2. Push files 
 ---upload the Seattle911PDProject_Script.R script with comment "Commit initial data download and extract script Khaliun.B 2021.05.12 16:57"
+-1. Commit files
+-2. Push files 
+---upload the Project log file with comment "Commit initial Project log file Khaliun.B 2021.05.12 16:59"
+-1. Commit files
+-2. Push files 
+########################################
+### Khaliun.B 2021.05.13 13:11
+### We are starting with the analysis of data
+########################################
+--- Fixing the header for data in the bash script and R script by abbreviating the column names
+"CAD CDW ID","CAD_CDW_ID"
+"CAD Event Number","CAD_EN"
+"General Offense Number","GON"
+"Event Clearance Code","ECC"
+"Event Clearance Description","ECD"
+"Event Clearance SubGroup","ECSG"
+"Event Clearance Group","ECG"
+"Event Clearance Date","ECDt"
+"Hundred Block Location","HBL"
+"District/Sector","Dist_Sec"
+"Zone/Beat","Zone_Beat"
+"Census Tract","Census_Tract"
+"Longitude","Longitude"
+"Latitude","Latitude"
+"Incident Location","ILoc"
+"Initial Type Description","ITDesc"
+"Initial Type Subgroup","ITSG"
+"Initial Type Group","ITG"
+"At Scene Time","ASTm"
+--- (!) Notes on data:
+(!) Response Time is not calculable
+---upload the re-created data file and the bash script with comment "Commit data file zipped with header Khaliun.B 2021.05.13 14:33"
 -1. Commit files
 -2. Push files 

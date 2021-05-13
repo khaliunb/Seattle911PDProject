@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #####################################################################
-#Code in this file uses bash script commands to create 100MB data from
-#original Seattle_Police_Department_911_Incident_Response.csv file
+#Ubuntu command line code in this file uses bash script commands to prepare
+# trimmed data file from original Seattle_Police_Department_911_Incident_Response.csv file
 # It is not necessary for you to run this script.
 # This is because github is not allowing me to upload file larger than 100MB
 # Therefore I am trimming the data, but doing so, trying to represent
@@ -24,6 +24,7 @@ DOWDIR="~/Downloads/archive/Seattle_Police_Department_911_Incident_Response.csv"
 RESSIZE_MB=80;
 RESDIR="SeattlePD911IR_"$RESSIZE_MB"_MB.csv"
 RESZIP="SeattlePD911IR_"$RESSIZE_MB"_MB.zip"
+HEADDIR="HeadS911PD.csv"
 #We are also assigning the default values for temp variables to be used for the script
 now=$(date +'%Y%m%d%I%M%S');
 TEMPLOGFILE="temp"$now".log";
@@ -56,9 +57,9 @@ rm $RESDIR
 #Result is not the exact size, it may actually exceed the intended result,
 #but it will be approximation and the data will be represented nicely
 echo "Sampling "$TOTSHUFROW" number of rows from file "$DOWDIR". Results will be stored in file: "$RESDIR
-head -n 1 $DOWDIR > $RESDIR
+awk -F"," '{print $2}' $HEADDIR | tr "\n" "," > $RESDIR
 shuf -n $TOTSHUFROW $DOWDIR >> $RESDIR
 #zip the resulting file
 echo "Zipping file: "$RESDIR" into "$RESZIP
-zip $RESZIP $RESDIR
+zip $RESZIP *
 rm $RESDIR
