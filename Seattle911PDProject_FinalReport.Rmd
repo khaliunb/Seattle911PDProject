@@ -1,30 +1,199 @@
 ---
 title: "Seattle 911 Police Department Incident Response Data Analysis Final Report"
 author: "Khaliun Bat-Ochir"
-date: "5/12/2021"
-output: pdf_document
+date: "May 14th, 2021"
+emails:
+  - "khaliun83@yahoo.com"
+  - "khaliun@spoon.mn"
+linkedin: "https://www.linkedin.com/in/khaliun-bat-ochir-334925b4/"
+info_program: "Data Science Professional Certificate Program"
+info_institution: "HarvardX and online initiative by Harvard University"
+info_course: "Capstone Course"
+output:
+  pdf_document:
+    extra_dependencies: "subfig"
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document: default
+papersize: a4
+linestretch: 1.5
+fontsize: 10pt
+links-as-notes: true
+bibliography: ["csl/references.bib"]
+link-citations: yes
+csl: "csl/harvard-the-university-of-sheffield-town-and-regional-planning.csl"
+header-includes:
+  - \usepackage{titling}
+  - \pretitle{\begin{center}
+    \includegraphics[width=2in,height=2in]{images/HarvardXLogo.jpeg}\LARGE\\}
+  - \posttitle{\end{center}}
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyfoot[CO,CE]{Page Number}
+  - \fancyfoot[LE,RO]{\thepage}
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r dataprep-file-source, include=FALSE}
+source("Seattle911PDProject_Script.R", local = knitr::knit_global())
 ```
 
-## Including Plots
+\newpage
 
-You can also embed plots, for example:
+# Introduction
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+This is the `r rmarkdown::metadata$title` for `r rmarkdown::metadata$info_course` from `r rmarkdown::metadata$info_program` offered by `r rmarkdown::metadata$info_institution` prepared by `r rmarkdown::metadata$author`.
+
+Final Report includes methodology and results of the analysis. Also, this report includes project environment description used for building and running the code.
+
+## Project Goal
+
+This is a Machine Learning project. Main goal of the project consisits in training an algorithm that predicts Event Clearence Code of **Seattle Police Department 911 Incident Response** data set.
+
+Sub goal of the project consists in:
+
+* Analysing **Seattle Police Department 911 Incident Response** data to obtain the best features from the data set and improve interpretability
++ Analyzing variable importance
++ Obtaining best tune to achieve highest accuracy, specifity, sensitivity values in the confusion matrix
+
+## Project Data and preprocessing for download
+
+Project data is based on **Seattle Police Department 911 Incident Response** cleaned data set from [*Kaggle*](https://www.kaggle.com/sohier/seattle-police-department-911-incident-response). The original data file was downloaded and processed using [*Seattle911DataPrepScript.sh*](http://files.grouplens.org/datasets/movielens/ml-10m.zip) bash script to pre-process the data to obtain intended amount of lines of data and also replace the header. Resulting data file was then uploaded to [*Github Repository*](http://files.grouplens.org/datasets/movielens/ml-10m.zip) and is available for download.
+
+## Project Files
+
+Project data and script files and folders are uploaded [*Seattle911PDProject Github Repository*](https://github.com/khaliunb/MovieLensCodes.git)).  Uploaded Files Include:
+ 
+* Data File - "data/SeattlePD911IR_80_MB.zip" available for download and used for the project script
+* RMarkdown Report File - "Seattle911PDProject_FinalReport.Rmd" which is the current report file
+* R Script File - "Seattle911PDProject_Script.R" that includes codes and comments for model fitting and training
+* PDF Report - "Seattle911PDProject_FinalReport.pdf"
+
+Github repository also holds additional files and folders used for the project and knitting the report.
+
+## Project Environment
+
+Codes for the project were built and tested using:
+
+* R version 3.6 and
++ RStudio Version 1.3.1073
++ Linux Ubuntu 20.04
+
+\newpage
+
+# Method
+
+## Data Set and training
+
+Code downloads and populates the data file into **S911IR** data set.
+
+Summary of **S911IR** data set:
+
+```{r (S911IR)}
+summary(S911IR)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+For training purposes, data is divided into **train_set** and **test_set**:
+
+* **train_set** - 80% of the complete **Seattle Police Department 911 Incident Response** data set
+ + **test_set** - 20% of the complete **Seattle Police Department 911 Incident Response** data set
+
+Furthermore, **train_set** data set had been matched with **test_set** data set and all recurring data had been removed from **test_set** data set.
+
+Summary of **train_set** data set:
+
+```{r (train_set), echo=FALSE}
+summary(train_set)
+```
+
+Summary of **test_set** data set:
+
+```{r (test_set), echo=FALSE}
+summary(test_set)
+```
+
+\newpage
+
+## Questions and Method
+
+From my perspective, the linear model is not applicable here. The best way to approach this problem is to train the data with random forest algorithm and see what happens. However, we need to develop a way to make it more interpretable. And also we have to consider the amount of resources and time random forest algorithm consumes.
+
+By this point, we are looking at more definite description of our project's problem. We need to experiment with data, to test out different assumptions. General questions we needed to answer:
+
+1. What if we only group the full data features into subsets of groups?
+2. How many groups the data should the features be divided into?
+3. Should we consider regularization?
+4. What happens if we feed the train the clustered group features random forest algorithm, and what is the best tune?
+5. How much accuracy can we get with predicting the event clearance?
+
+From the data set, we assume that the features can be divided into location, timing, and situation groups. From here, we answer to more detailed questions:
+
+- Which are the event clearance groups/subgroup/description that occur the most?
+- Which are the most frequently occurring event clearance group and incident type group pair?/Is there relation between incident type group/subgroup/description and event clearance group/subgroup/description?
+- Is there relation between location and event clearance description/subgroup/description?
+    - Is there certain prevalence in overall number of event clearance description/subgroup/description in certain location?
+- Is there relation between timing and event clearance description/subgroup/description?
+    - Was there increase/decrease in event clearance description/subgroup/description overall occurrence over time?
+    - During which season event clearance description/subgroup/description overall occurrence increases/decreases?
+    - On which day of the week event clearance description/subgroup/description overall occurrence increases/decreases?
+    - During which hour of the day event clearance description/subgroup/description overall occurrence increases/decreases?
+    
+These questions clarify the answer which of the event clearance group subgroup/description features we are predicting.
+
+Also we are considering recurrence of certain groups of events clearance and incident types:
+
+- Is there relation between number of recurrence of certain incident type group/subgroup/description in data and event clearance group/subgroup/description?
+- Is there relation between number of recurrence of certain event clearance group/subgroup/description in data and timing of the incident type group/subgroup/description?
+- Is there relation between number of recurrence of certain event clearance group/subgroup/description in data and location of the incident type group/subgroup/description?
+- Is there certain pattern of increase/decrease recurrence of certain event clearance group/subgroup/description in data in relation to location?
+    - Is there certain prevalence in number of certain event clearance description/subgroup/description in certain location?
+- Is there certain pattern of increase/decrease recurrence of certain event clearance group/subgroup/description in data in relation to timing?
+    - Was there increase/decrease in certain event clearance description/subgroup/description occurrence over time?
+    - During which season certain event clearance description/subgroup/description occurrence increases/decreases?
+    - On which day of the week certain event clearance description/subgroup/description occurrence increases/decreases?
+    - During which hour of the day certain event clearance description/subgroup/description occurrence increases/decreases?
+
+# Analysis and Results
+
+Note: Results section contains plots and summary results of the analysis process. Plots had been saved and are stored in *images* folder.
+
+## Data Exploration and Further processing
+
+Additional feature had been mutated into the data
+
+From data, we see the incident description and the event clearance descriptions rarely match for events viewed as "criminal" and "suspicious". We also see that traffic incidents have clearer descriptions. This may relate to the fact that people's eyes recognize "suspicious" may be viewed differently depending on circumstances. We may view it as additional motivation for predicting the event clearance prior to dispatching police department.
+
+## Final model performance
+
+\newpage
+
+# Conclusion
+
+\newpage
+
+# Contact Information {-}
+
+If you have any questions regarding the project, please feel free to contact me at any of my emails: *`r rmarkdown::metadata$emails`*; or feel free to visit my [*Linkedin Profile*](`r rmarkdown::metadata$linkedin`)
+
+# References {-}
+
+## Books {-}
+
+* @HarvardXDataScienceProgramTextbook
+* @RMarkdownCookbook
+
+## Articles {-}
+
+* @kmeansclustering
+
+## Manuals {-}
+
+* @R-base
+* @R-dplyr
+* @R-ggplot2
+* @R-tidyverse
+* @lm
