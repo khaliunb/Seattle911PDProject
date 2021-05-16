@@ -91,11 +91,16 @@ Codes for the project were built and tested using:
 
 Code downloads and populates the data file into **S911IR** data set.
 
-Summary of **S911IR** data set:
+Basic overview of data, revealed that we probably have incomplete records before June of 2010. Therefore we are trimming the original data to records between 1st of July, 2010 and 31st December, 2017
+
+Also, for large amount of records, Initial Type description/subgroup/group and At Scene time records are missing. 
+
+Summary of **S911IR** resulting data set:
 
 ```{r (S911IR)}
 summary(S911IR)
 ```
+
 
 For training purposes, data is divided into **train_set** and **test_set**:
 
@@ -160,6 +165,8 @@ Also we are considering recurrence of certain groups of events clearance and inc
 # Analysis and Results
 
 Note: Results section contains plots and summary results of the analysis process. Plots had been saved and are stored in *images* folder.
+
+Analysis reveals that when we are training data, we should definitely consider regularization for ECD occurrence.
 
 ## Data Exploration and Further processing
 
