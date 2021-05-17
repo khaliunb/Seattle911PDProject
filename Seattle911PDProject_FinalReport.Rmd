@@ -38,7 +38,7 @@ header-includes:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r dataprep-file-source, include=FALSE}
+```{r dataprep-file-source, include=TRUE}
 source("Seattle911PDProject_Script.R", local = knitr::knit_global())
 ```
 
@@ -62,11 +62,11 @@ Sub goal of the project consists in:
 
 ## Project Data and preprocessing for download
 
-Project data is based on **Seattle Police Department 911 Incident Response** cleaned data set from [*Kaggle*](https://www.kaggle.com/sohier/seattle-police-department-911-incident-response). The original data file was downloaded and processed using [*Seattle911DataPrepScript.sh*](http://files.grouplens.org/datasets/movielens/ml-10m.zip) bash script to pre-process the data to obtain intended amount of lines of data and also replace the header. Resulting data file was then uploaded to [*Github Repository*](http://files.grouplens.org/datasets/movielens/ml-10m.zip) and is available for download.
+Project data is based on **Seattle Police Department 911 Incident Response** cleaned data set from [*Kaggle*](https://www.kaggle.com/sohier/seattle-police-department-911-incident-response). The original data file was downloaded and processed using [*Seattle911DataPrepScript.sh*](https://github.com/khaliunb/Seattle911PDProject/blob/fe35003ed71cdae22966a168b7728724403d3a7c/Seattle911DataPrepScript.sh) bash script to pre-process the data to obtain intended amount of lines of data and also replace the header. Resulting data file was then uploaded to [*Github Repository*](https://github.com/khaliunb/Seattle911PDProject/tree/main/data) and is available for download.
 
 ## Project Files
 
-Project data and script files and folders are uploaded [*Seattle911PDProject Github Repository*](https://github.com/khaliunb/MovieLensCodes.git)).  Uploaded Files Include:
+Project data and script files and folders are uploaded [*Seattle911PDProject Github Repository*](https://github.com/khaliunb/Seattle911PDProject.git)).  Uploaded Files Include:
  
 * Data File - "data/SeattlePD911IR_80_MB.zip" available for download and used for the project script
 * RMarkdown Report File - "Seattle911PDProject_FinalReport.Rmd" which is the current report file
@@ -97,10 +97,6 @@ Also, for large amount of records, Initial Type description/subgroup/group and A
 
 Summary of **S911IR** resulting data set:
 
-```{r (S911IR)}
-summary(S911IR)
-```
-
 
 For training purposes, data is divided into **train_set** and **test_set**:
 
@@ -111,15 +107,9 @@ Furthermore, **train_set** data set had been matched with **test_set** data set 
 
 Summary of **train_set** data set:
 
-```{r (train_set), echo=FALSE}
-summary(train_set)
-```
 
 Summary of **test_set** data set:
 
-```{r (test_set), echo=FALSE}
-summary(test_set)
-```
 
 \newpage
 
@@ -164,21 +154,47 @@ Also we are considering recurrence of certain groups of events clearance and inc
 
 # Analysis and Results
 
-Note: Results section contains plots and summary results of the analysis process. Plots had been saved and are stored in *images* folder.
-
-Analysis reveals that when we are training data, we should definitely consider regularization for ECD occurrence.
-
 ## Data Exploration and Further processing
 
-Additional feature had been mutated into the data
+Additional features related to timing had been mutated into the data set we are using. Here is the list descriptions of data headers.
+
+
+
+Basic overview of data, revealed that we probably have incomplete records before June of 2010. Therefore we are trimming the original data to records between 1st of July, 2010 and 1st September, 2017.
+
+Overview of data revealed data record number drop between 2013 and 2014 year. The data is probably missing. Therefore, when we are training data, we should definitely consider regularization for ECD occurrence number. Another approach for solving the missing data problem was to divide the complete data set into two subsets and train them separately.
 
 From data, we see the incident description and the event clearance descriptions rarely match for events viewed as "criminal" and "suspicious". We also see that traffic incidents have clearer descriptions. This may relate to the fact that people's eyes recognize "suspicious" may be viewed differently depending on circumstances. We may view it as additional motivation for predicting the event clearance prior to dispatching police department.
+
+## Questions answered
+
+Note: Results section contains plots and summary results of the analysis process. Plots had been saved and are stored in *images* folder.
+
+Due to the fact data was likely missing, it is probably best to compare the analysis results for both sampled data we are using and the complete 380MB data downloaded from Kaggle. This will help is see if the data was properly sampled, and also answer the question "What happens if we use the incomplete data set?". Plots have been aligned side by side for better comparison.
+
+Lists we represent here in the analysis results have been prepared using the sampled data we are using.
+
+### Question: What is the overall picture of overall occurence of event clearance description? Also, do some ECDs prevail over others on daily basis?
+
+We will view overall occurence plots side by side to get a clear idea.
+
+```{r, echo=FALSE,out.width="49%",out.height="49%",fig.show='hold', fig.align='center', fig.cap="This is the main caption - Years 2020 - 2030 - the main caption."}
+knitr::include_graphics(c("images/Rplot1_ECDOverallOccurence_80MBData.png","images/Rplot1_ECDOverallOccurence_FullData.png"))
+```
+
+From the plot we see four bars that significantly exceed 20'000 in total occurence. For full data, this number rises above 50'000. 
+
+We can also see that the picture changes when we consider daily averages.
+
+
+#  - So, which four are the event clearance description that occur the most? And do they also prevail on daily basis
 
 ## Final model performance
 
 \newpage
 
 # Conclusion
+
 
 \newpage
 

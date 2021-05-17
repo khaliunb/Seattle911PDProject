@@ -1,41 +1,4 @@
 source("Seattle911PDProject_Script.R", local = knitr::knit_global())
-library(lubridate)
-#############################################################################
-#### BEGIN: DATA SET FIELD NAME REFERENCES
-#############EVENT CLEARANCE AND INCIDENT TYPE RELATED FIELDS################
-#"Event Clearance Description","ECD"  | #"Initial Type Description","ITDesc"
-#"Event Clearance SubGroup","ECSG"    | #"Initial Type Subgroup","ITSG"
-#"Event Clearance Group","ECG"        | #"Initial Type Group","ITG"
-#############################################################################
-
-#############LOCATION RELATED FIELDS#########################################
-#"Hundred Block Location","HBL"       | #"Incident Location","ILoc"
-#"District/Sector","Dist_Sec"
-#"Zone/Beat","Zone_Beat"
-#"Census Tract","Census_Tract"
-#"Longitude","Longitude"
-#"Latitude","Latitude"
-#############################################################################
-
-#############TIMING RELATED FIELDS###########################################
-#"Event Clearance Date","ECDt"        | #"At Scene Time","ASTm"
-
-#Also we are adding some date and time fields for the analysis of data
-#"Event Clearance Date Converted to Full data time format","EC_DateTime"
-#"At Scene Time Converted to Full data time format","AS_DateTime"
-S911IR<-S911IR%>%mutate(EC_DateTime=parse_date_time(ECDt,'%m/%d/%Y %I:%M:%S %p'),na.rm=TRUE)
-S911IR<-S911IR%>%mutate(AS_DateTime=parse_date_time(ASTm,'%m/%d/%Y %I:%M:%S %p'),na.rm=FALSE)
-#"Timespan in minutes between At Scene Time and Event Clearance Date Time","AS_TimeSpan"
-S911IR<-S911IR%>%mutate(AS_TimeSpan=round(time_length(AS_DateTime %--% EC_DateTime,"minute")),na.rm=FALSE)
-
-#Adding new field names and descriptions to S911IR_Head data frame for reference
-S911IR_Head<-bind_rows(S911IR_Head,
-                       data.frame(colDesc="Event Clearance Date Converted to Full data time format",colName="EC_DateTime"),
-                       data.frame(colDesc="At Scene Time Converted to Full data time format",colName="AS_DateTime"),
-                       data.frame(colDesc="Timespan in minutes between At Scene Time and Event Clearance Date Time",colName="AS_TimeSpan"))
-#############################################################################
-#### END: DATA SET FIELD NAME REFERENCES
-#############################################################################
 
 #  - What is the overall picture of overall occurence of event clearance description? Also, do some ECDs prevail over others on daily basis? We will view the plots side by side to get a clear idea.
 S911IR%>%group_by(ECD)%>%summarise(overall = n()) %>%
@@ -63,6 +26,8 @@ S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%
           left_join(S911IR,by="ECD")%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n())%>%
           ggplot(aes(x=reorder(ECD,daily,na.rm=TRUE),y=daily))+geom_boxplot()+coord_flip()+
           labs(y="Daily occurence", x="Event Clearance Description", subtitle="ECDs with large overall occurences:Daily occurence In Descending Order")
+#For full data, the trimming point for "Large overall" occurences had been above 20'000. But for Sample data it had been 8'000 for this plot. We are comparing the results side by side. But the overall picture is the same.
+
 # Here, we are bringing in the Initial Type Description to see whether they match the resulting Event Clearance Description, or do people commonly mistake the symptoms of the situation very often.
 S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%>%group_by(ECD)%>%
     summarise(overallECD=sum(daily),daily_avgECD=mean(daily))%>%
@@ -80,10 +45,21 @@ S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%
                  alpha = guide_legend(order=1))+
     scale_y_log10(labels=NULL)+
     labs(y="", x="Initial Type Descriptions", subtitle="")
+#For full data, the trimming point for "Large ECD" occurences had been above 50'000. But for Sample data it had been 20'000 for this plot. We are comparing the results side by side. But the overall picture is the same.
+
+#For this Dot plot, alpha opaqueness represents high daily average Initial Type Description.
+
 #From this "Total occurences of Initial Type Description within most occuring Event clearance Description" plot we see clearly that:
 #- "NA"s is ITDesc occur most frequently
 #- ECD "Suspicious person","Disturbance, Other" is most prevalent for most reasons. Which we can attribute to the fact that this type of description is applicable to most circumstances.
 #- ECD "PARKING VIOLATIONS (EXCEPT ABANDONED VEHICLES)" have the least daily average for ECD, but the most daily average for ITDesc. Which means while this type of ECD happens less, people identify the reason for this ECD most clearly.
+
+#From full data, we see that:
+#- DETOX - REQUEST FOR result in DISTURBANCE, OTHER
+#- PARKING VIOLATIONS (EXCEPT ABANDONED VEHICLES), TRAFFIC - MOVING VIOLATION in ITDesc match the ECD directly
+#And here we see another more insightful aspect:
+#- SHOTS - IP/JO - INCLUDES HEARD/NO ASSAULT results in Event Clearance Description of SUSPICIOUS PERSON
+#This may describe the degree of fear of guns and shots in Seattle citizens, and the fact that these rarely are founded assumptions.
 
 #Here is another version of the plot to see whether there are relationship between the ECD and ITDesc.
 S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%>%group_by(ECD)%>%
@@ -102,11 +78,14 @@ S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%
          shape=guide_legend(order=1))+
   scale_y_log10(labels=NULL)+
   labs(y="Daily Average ITDesc", x="Daily Average ECD", subtitle="")
+#For this version of the plot, color represents ITDesc groups, while ECDs are represented by shape.
+#For full data, the trimming point for "Large ECD" occurences had been above 50'000. But for Sample data it had been 20'000 for this plot. We are comparing the results side by side. But the overall picture is the same.
+
 #-----------------------------------------------------------
 #  - Is there relation between location and event clearance description/subgroup/description?
 #     - Is there certain prevalence in overall number of event clearance description/subgroup/description in certain location?
 
-#locMatrix<-S911IR%>%group_by(ILoc,ECD)%>%summarize(count=n())%>%filter(count>100)%>%select(ILoc,ECD,count)%>%spread(key=ECD,value=count)
+locMatrix<-S911IR%>%group_by(ILoc,ECD)%>%summarize(count=as.integer(n()))%>%filter(count>100)%>%select(ILoc,ECD,count)%>%spread(key=ECD,value=count)
 #locMatrix<-as.matrix(locMatrix)
 #rownames(locMatrix)<- locMatrix[,1]
 #locMatrix <- locMatrix[,-1]
@@ -131,26 +110,35 @@ S911IR%>%mutate(EC_Year=year(EC_DateTime),EC_Month=month(EC_DateTime))%>%group_b
   labs(y="Montly Average", x="Month", subtitle="")
 
 S911IR%>%mutate(EC_Day=date(EC_DateTime))%>%group_by(EC_Day,ECD)%>%summarise(daily = n()) %>%
-  ggplot(aes(month(EC_Day), mean(daily))) + geom_col() + theme(axis.text.y = element_blank(),axis.text.x = element_blank())+
+  ggplot(aes(month(EC_Day), mean(daily))) + geom_col() + geom_smooth() + theme(axis.text.y = element_blank(),axis.text.x = element_blank())+
   labs(y="Daily Averages by Month", x="Month", subtitle="")
+#From the histogram, we see surge of daily averages in July and August.
 
 #     - During which season event clearance description/subgroup/description overall occurrence increases/decreases?
 S911IR%>%mutate(EC_Year=year(EC_DateTime),EC_Quarter=quarter(EC_DateTime))%>%group_by(EC_Year,EC_Quarter)%>%arrange(EC_Year,EC_Quarter)%>%summarize(count=n())%>%group_by(EC_Quarter)%>%summarise(avgbyMonth=mean(count))%>%
   ggplot(aes(x=EC_Quarter,y=avgbyMonth))+geom_col()+geom_smooth()+
   theme(axis.text.y = element_blank(),axis.text.x = element_blank())+
   labs(y="Quarterly Average", x="Quarter", subtitle="")
+#We can see definite surge of total incidents in 3rd quarter.
 
 S911IR%>%mutate(EC_Day=date(EC_DateTime))%>%group_by(EC_Day,ECD)%>%summarise(daily = n()) %>%
   ggplot(aes(quarter(EC_Day), mean(daily))) + geom_col() + theme(axis.text.y = element_blank(),axis.text.x = element_blank())+
   labs(y="Daily Averages by Quarter", x="Quarter", subtitle="")
+#We can see definite surge of daily average number of incidents in 3rd quarter.
 
 #     - On which day of the week event clearance description/subgroup/description overall occurrence increases/decreases?
 S911IR%>%mutate(EC_Day=date(EC_DateTime))%>%group_by(EC_Day,ECD)%>%summarise(daily = n()) %>%
   ggplot(aes(wday(EC_Day), mean(daily))) + geom_col() + theme(axis.text.y = element_blank(),axis.text.x = element_blank())+
   labs(y="Daily Averages by Weekday", x="Weekday", subtitle="")
+# According to the plot, none of the weekdays can be viewed as special.
+
 #     - During which hour of the day event clearance description/subgroup/description overall occurrence increases/decreases?
 S911IR%>%mutate(EC_Day=date(EC_DateTime),Hour=hour(EC_DateTime))%>%group_by(EC_Day,Hour)%>%summarise(hourly = n()) %>%
   ggplot(aes(Hour, mean(hourly))) + geom_col() + theme(axis.text.y = element_blank(),axis.text.x = element_blank())+
-  labs(y="Hourly Average Occurences of ECD", x="Weekday", subtitle="")
+  labs(y="Hourly Average Occurences of ECD", x="Hour", subtitle="")
+#Hourly averages are practically the same. But in the sampled data, there is slight drop between 7AM and 8AM in daily average occurence.
+
 #     - On average, how many minutes does it take from At Scene Time and Event clearance Time for Event clearance description/subgroup/group? And which Event Clearance description/subgroup/group is most time consuming? Which ones are most quick to be resolved?
 S911IR%>%filter(!is.na(AS_TimeSpan)&AS_TimeSpan>0)%>%group_by(ECD,AS_TimeSpan)%>%arrange(ECD,AS_TimeSpan)%>%summarize(avg=mean(AS_TimeSpan),median=median(AS_TimeSpan))%>%arrange(desc(avg,median))%>%select(ECD,AS_TimeSpan,avg,median)%>%head(10)
+
+S911IR%>%head()
