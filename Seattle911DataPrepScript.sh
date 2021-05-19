@@ -57,10 +57,10 @@ rm $RESDIR
 #Result is not the exact size, it may actually exceed the intended result,
 #but it will be approximation and the data will be represented nicely
 echo "Sampling "$TOTSHUFROW" number of rows from file "$DOWDIR". Results will be stored in file: "$RESDIR
-awk -F"," '{print $2}' $HEADDIR | tr "\n" "," > $RESDIR
+awk -F"," '{print $2}' $HEADDIR | tr "\n" "," | sed "s/,$//g" > $RESDIR
 echo "" >> $RESDIR
 shuf -n $TOTSHUFROW $DOWDIR >> $RESDIR
 #zip the resulting file
 echo "Zipping file: "$RESDIR" into "$RESZIP
-zip $RESZIP *
+zip $RESZIP *.csv
 rm $RESDIR
