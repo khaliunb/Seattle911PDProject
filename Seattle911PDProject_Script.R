@@ -13,7 +13,6 @@ library(lubridate)
 #unzip(dl,exdir="data/")
 #rm(dl)
 # Read the data
-S911IR_Head<-read_csv("data/HeadS911PD.csv",col_names = c("colDesc", "colName"))
 S911IR<-read_csv("data/SeattlePD911IR_80_MB.csv")
 #S911IR<-read_csv("/home/spoonmediabigdata/Downloads/archive/dd.csv")
 S911IR<-as.data.frame(S911IR)
@@ -48,10 +47,10 @@ S911IR<-as.data.frame(S911IR)
 #Also we are adding some date and time fields for the analysis of data
 #"Event Clearance Date Converted to Full data time format","EC_DateTime"
 #"At Scene Time Converted to Full data time format","AS_DateTime"
-#S911IR<-S911IR%>%mutate(EC_DateTime=parse_date_time(ECDt,'%m/%d/%Y %I:%M:%S %p'),na.rm=TRUE)
-#S911IR<-S911IR%>%mutate(AS_DateTime=parse_date_time(ASTm,'%m/%d/%Y %I:%M:%S %p'),na.rm=FALSE)
+S911IR<-S911IR%>%mutate(EC_DateTime=parse_date_time(ECDt,'%m/%d/%Y %I:%M:%S %p'),na.rm=TRUE)
+S911IR<-S911IR%>%mutate(AS_DateTime=parse_date_time(ASTm,'%m/%d/%Y %I:%M:%S %p'),na.rm=FALSE)
 #"Timespan in minutes between At Scene Time and Event Clearance Date Time","AS_TimeSpan"
-#S911IR<-S911IR%>%mutate(AS_TimeSpan=round(time_length(AS_DateTime %--% EC_DateTime,"minute")),na.rm=FALSE)
+S911IR<-S911IR%>%mutate(AS_TimeSpan=round(time_length(AS_DateTime %--% EC_DateTime,"minute")),na.rm=FALSE)
 
 #Adding new field names and descriptions to S911IR_Head data frame for reference
 #S911IR_Head<-bind_rows(S911IR_Head,

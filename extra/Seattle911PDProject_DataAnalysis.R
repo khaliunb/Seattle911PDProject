@@ -1,4 +1,4 @@
-source("Seattle911PDProject_Script.R", local = knitr::knit_global())
+source("../Seattle911PDProject_Script.R", local = knitr::knit_global())
 
 #  - What is the overall picture of overall occurence of event clearance description? Also, do some ECDs prevail over others on daily basis? We will view the plots side by side to get a clear idea.
 S911IR%>%group_by(ECD)%>%summarise(overall = n()) %>%

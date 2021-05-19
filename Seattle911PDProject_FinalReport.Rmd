@@ -36,10 +36,7 @@ header-includes:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
-
-```{r dataprep-file-source, include=TRUE}
-source("Seattle911PDProject_Script.R", local = knitr::knit_global())
+library(tidyverse)
 ```
 
 \newpage
@@ -52,13 +49,13 @@ Final Report includes methodology and results of the analysis. Also, this report
 
 ## Project Goal
 
-This is a Machine Learning project. Main goal of the project consisits in training an algorithm that predicts Event Clearence Code of **Seattle Police Department 911 Incident Response** data set.
+This is a Machine Learning project. Main goal of the project consists in training an algorithm that predicts Event Clearance Code of **Seattle Police Department 911 Incident Response** data set.
 
 Sub goal of the project consists in:
 
-* Analysing **Seattle Police Department 911 Incident Response** data to obtain the best features from the data set and improve interpretability
+* Analyzing **Seattle Police Department 911 Incident Response** data to obtain the best features from the data set and improve interpretability
 + Analyzing variable importance
-+ Obtaining best tune to achieve highest accuracy, specifity, sensitivity values in the confusion matrix
++ Obtaining best tune to achieve highest accuracy, specificity, sensitivity values in the confusion matrix
 
 ## Project Data and preprocessing for download
 
@@ -158,7 +155,14 @@ Also we are considering recurrence of certain groups of events clearance and inc
 
 Additional features related to timing had been mutated into the data set we are using. Here is the list descriptions of data headers.
 
-
+```{r, echo=FALSE}
+S911IR_Head<-read_csv("data/HeadS911PD.csv",col_names = c("colDesc", "colName"))
+S911IR_Head<-bind_rows(S911IR_Head,
+                       data.frame(colDesc="Event Clearance Date Converted to Full data time format",colName="EC_DateTime"),
+                       data.frame(colDesc="At Scene Time Converted to Full data time format",colName="AS_DateTime"),
+                       data.frame(colDesc="Timespan in minutes between At Scene Time and Event Clearance Date Time",colName="AS_TimeSpan"))
+S911IR_Head%>%knitr::kable()
+```
 
 Basic overview of data, revealed that we probably have incomplete records before June of 2010. Therefore we are trimming the original data to records between 1st of July, 2010 and 1st September, 2017.
 
@@ -178,16 +182,154 @@ Lists we represent here in the analysis results have been prepared using the sam
 
 We will view overall occurence plots side by side to get a clear idea.
 
-```{r, echo=FALSE,out.width="49%",out.height="49%",fig.show='hold', fig.align='center', fig.cap="This is the main caption - Years 2020 - 2030 - the main caption."}
-knitr::include_graphics(c("images/Rplot1_ECDOverallOccurence_80MBData.png","images/Rplot1_ECDOverallOccurence_FullData.png"))
+```{r,plot-ecd-overall-occur,fig.cap='Seattle 911 Incident Response: Event Clearance Description Overall Occurence', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot1_ECDOverallOccurence_FullData.png","images/Rplot1_ECDOverallOccurence_80MBData.png"))
 ```
-
-From the plot we see four bars that significantly exceed 20'000 in total occurence. For full data, this number rises above 50'000. 
 
 We can also see that the picture changes when we consider daily averages.
 
+```{r,plot-ecd-daily-avg-occur,fig.cap='Seattle 911 Incident Response: Event Clearance Description Daily Average Occurence', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot2_ECDDailyAvgOccurence_FullData.png","images/Rplot2_ECDDailyAvgOccurence_80MBData.png"))
+```
 
-#  - So, which four are the event clearance description that occur the most? And do they also prevail on daily basis
+From the plot we see some bars that significantly prevail over others. So, which are the event clearance description that occur the most? And do they also prevail on daily basis? We are considering the project data in detail.
+
+Project data for Large Occurence ECDs
+
+```{r eval=FALSE}
+S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n())%>%
+    ungroup()%>%group_by(ECD)%>%
+    summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%
+    filter(overall>20000)%>%arrange(desc(overall))%>%
+    select(ECD,overall,daily_avg,daily_median)
+```
+
+We can also see group of bars in project data plot that have occurences between 8'000 and 20'000 (in full data version, these numbers are between 20'000 and 50'0000). And do they what is their average occurence on daily basis? Which are the event clearance description that form the group? We are considering the project data in detail.
+
+Project data for Middle Occurence ECDs
+
+```{r eval=FALSE}
+S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n())%>%
+    ungroup()%>%group_by(ECD)%>%
+    summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%
+    filter(overall>=8000 & overall<=20000)%>%
+    arrange(desc(overall))%>%
+    select(ECD,overall,daily_avg,daily_median)
+```
+
+Those ECDs that are present, but can be viewed as separate occurences should also be noted.
+So, what are the ECDs that have barely existent occurences? We are considering the project data in detail and picking out that have least number of occurences. But we are considering the fact that data is probably missing between 2013 and 2014. Therefore we are considering years between July, 2010- February 2013 and July, 2014 - December 2017.
+
+```{r eval=FALSE}
+S911IR%>%filter((EC_DateTime<=make_date(year=2014,month=2,day=1))&
+                  (EC_DateTime>=make_date(year=2014,month=7,day=1)))%>
+    group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>%
+    ungroup()%>%group_by(ECD)%>%
+    summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%
+    filter(overall<50)%>%arrange(desc(overall))%>%select(ECD,overall,daily_avg,daily_median)
+```
+
+We are using boxplot to see more clear picture. And here we are considering group of ECDs that have overall occurence of more than 8'000. For full data, the trimming point for "Large overall" occurences had been above 20'000. But for Project data it had been 8'000 for this plot. We are comparing the Project data and Full Kaggle data results side by side. But the overall picture is the same.
+
+```{r,plot-ecd-daily-avg-quantile,fig.cap='Seattle 911 Incident Response: ECD Quantile Daily Average Occurence', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot3_LargeECDDailyOccurBoxplot_FullData.png","images/Rplot3_LargeECDDailyOccurBoxplot_80MBData.png"))
+```
+
+### Question: Do Initial Type Descriptions match Event Clearance Description, or do people commonly mistake the symptoms of the situation very often?
+
+Here, we are bringing in the Initial Type Description to see whether they match the resulting Event Clearance Description. We are comparing the Project data and Full Kaggle data results side by side.
+
+```{r,dotplot-ecd-itdesc-kaggle,fig.cap='Seattle 911 Incident Response: Event Clearance Description vs Initial Type Description - Project Data', out.width="100%", echo=FALSE}
+knitr::include_graphics("images/Rplot4_ECDvsITDescDotplot_80MBData.png")
+```
+
+For this Dot plot, alpha opaqueness represents high daily average Initial Type Description. 
+
+From the Project data plot we see clearly that:
+* "NA"s in ITDesc occur most frequently. But it is not a missing data. It is due to failure of callers to describe the incident. Operators at 911 do not initially know what happened.
+* ECD "Suspicious person","Disturbance, Other" is most prevalent for most reasons. Which we can attribute to the fact that this type of description is applicable to most circumstances.
+* ECD "PARKING VIOLATIONS (EXCEPT ABANDONED VEHICLES)" have the least daily average for ECD, but the most daily average for ITDesc. Which means while this type of ECD happens less, people identify the reason for this ECD most clearly.
+
+```{r,dotplot-ecd-itdesc-project,fig.cap='Seattle 911 Incident Response: Event Clearance Description vs Initial Type Description - Full Kaggle Data', out.width="100%", echo=FALSE}
+knitr::include_graphics("images/Rplot4_ECDvsITDescDotplot_FullData.png")
+```
+From full data, we see that:
+* DETOX - REQUEST FOR result in DISTURBANCE, OTHER
+* PARKING VIOLATIONS (EXCEPT ABANDONED VEHICLES), TRAFFIC - MOVING VIOLATION in ITDesc match the ECD directly
+
+And here we see another more insightful aspect:
+
+* SHOTS - IP/JO - INCLUDES HEARD/NO ASSAULT results in Event Clearance Description of SUSPICIOUS PERSON
+This may describe the degree of fear of guns and shots in Seattle citizens, and the fact that these rarely are founded assumptions.
+
+Here is another version of the plot to see whether there are relationship between the ECD and ITDesc. Again, we are comparing the Project data and Full Kaggle data results side by side.
+
+```{r,dotplot2-ecd-itdesc,fig.cap='Seattle 911 Incident Response: Event Clearance Description vs Initial Type Description', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot5_ECDvsITDescDotplot2_FullData.png","images/Rplot5_ECDvsITDescDotplot2_80MBData.png"))
+```
+
+For this version of the plot, color represents ITDesc groups, while ECDs are represented by shape.
+For full data, the trimming point for "Large ECD" occurences had been above 50'000. But for Sample data it had been 20'000 for this plot. We are comparing the results side by side. But the overall picture is the same.
+
+### Question: Is there relation between timing and event clearance description?
+
+#### Was there increase/decrease in event clearance description overall occurrence over time? We are building Timeline plot to see this.
+
+```{r,plot-ecd-timeline,fig.cap='Seattle 911 Incident Response: ECD Timeline', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot6_TimelineECD_FullData.png","images/Rplot6_TimelineECD_80MBData.png"))
+```
+
+From the plot, we see sharp drop in daily total number around 2014. So what happened here? We investigate by detailing the plot by ECD and faceting daily averages by year versus month.
+
+```{r,plot-ecd-faceted-timeline, fig.cap='Seattle 911 Incident Response: ECD Timeline Faceted by Year and Month', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot7_FacetedTimelineByYearMonth_FullData.png","images/Rplot7_FacetedTimelineByYearMonth_80MBData.png"))
+```
+
+And here we see data largely missing between March of 2013 to June of 2014. And we also see that data after 1st of September, 2017 is missing. Therefore we have trimmed the Project data after that point.
+
+#### During which month event clearance description overall occurrence increases/decreases?
+
+```{r,plot-ecd-monthly-avg,fig.cap='Seattle 911 Incident Response: ECD Monthly Average', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot8_ECDMonthlyAverage_FullData.png","images/Rplot8_ECDMonthlyAverage_80MBData.png"))
+```
+
+We also want to see what happens on a daily basis.
+
+```{r,plot-ecd-daily-avg-by-month,fig.cap='Seattle 911 Incident Response: ECD Daily average by Month', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot9_ECDDailyAverageByMonth_FullData.png","images/Rplot9_ECDDailyAverageByMonth_80MBData.png"))
+```
+
+From the histogram, we see surge of daily averages in July and August.
+
+#### During which quarter event clearance description overall occurrence increases/decreases?
+
+```{r,plot-quarterly-avg,fig.cap='Seattle 911 Incident Response: ECD Quarterly Average', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot10_ECDQuarterlyAverage_FullData.png","images/Rplot10_ECDQuarterlyAverage_80MBData.png"))
+```
+
+We also want to see what happens on a daily basis.
+
+```{r,plot-ecd-daily-avg-by-quarter,fig.cap='Seattle 911 Incident Response: ECD Daily average by Quarter', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot11_ECDDailyAverageByQuarter_FullData.png","images/Rplot11_ECDDailyAverageByQuarter_80MBData.png"))
+```
+
+We can see definite surge of daily average number of incidents in 3rd quarter.
+
+#### On which day of the week event clearance description overall occurrence increases/decreases?
+
+```{r,plot-ecd-daily-avg-by-weekday,fig.cap='Seattle 911 Incident Response: ECD Daily average by Weekday', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot12_ECDDailyAveragesByWeekday_FullData.png","images/Rplot12_ECDDailyAveragesByWeekday_80MBData.png"))
+```
+
+According to the plot, none of the weekdays can be viewed as special.
+
+#### During which hour of the day event clearance description overall occurrence increases/decreases?
+
+```{r,plot-ecd-daily-avg-by-hour,fig.cap='Seattle 911 Incident Response: ECD Daily average by Hour', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot13_ECDHourlyAverages_FullData.png","images/Rplot13_ECDHourlyAverages_80MBData.png"))
+```
+
+Hourly averages are practically the same. But in the sampled data, there is slight drop between 7AM and 8AM in daily average occurence. It can be due to sampling process of Project data.
 
 ## Final model performance
 
