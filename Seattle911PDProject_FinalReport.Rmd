@@ -39,6 +39,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 ```
 
+```{r dataprep-file-source, include=FALSE}
+source("Seattle911PDProject_Script.R", local = knitr::knit_global())
+```
+
 \newpage
 
 # Introduction
@@ -94,6 +98,9 @@ Also, for large amount of records, Initial Type description/subgroup/group and A
 
 Summary of **S911IR** resulting data set:
 
+```{r (S911IR), echo=FALSE}
+summary(S911IR)
+```
 
 For training purposes, data is divided into **train_set** and **test_set**:
 
@@ -104,13 +111,19 @@ Furthermore, **train_set** data set had been matched with **test_set** data set 
 
 Summary of **train_set** data set:
 
+```{r (train_set), echo=FALSE}
+summary(train_set)
+```
 
 Summary of **test_set** data set:
 
+```{r (test_set), echo=FALSE}
+summary(test_set)
+```
 
 \newpage
 
-## Questions and Method
+## Questions Posed
 
 From my perspective, the linear model is not applicable here. The best way to approach this problem is to train the data with random forest algorithm and see what happens. However, we need to develop a way to make it more interpretable. And also we have to consider the amount of resources and time random forest algorithm consumes.
 
@@ -149,18 +162,15 @@ Also we are considering recurrence of certain groups of events clearance and inc
     - On which day of the week certain event clearance description/subgroup/description occurrence increases/decreases?
     - During which hour of the day certain event clearance description/subgroup/description occurrence increases/decreases?
 
+\newpage
+
 # Analysis and Results
 
 ## Data Exploration and Further processing
 
 Additional features related to timing had been mutated into the data set we are using. Here is the list descriptions of data headers.
 
-```{r, echo=FALSE}
-S911IR_Head<-read_csv("data/HeadS911PD.csv",col_names = c("colDesc", "colName"))
-S911IR_Head<-bind_rows(S911IR_Head,
-                       data.frame(colDesc="Event Clearance Date Converted to Full data time format",colName="EC_DateTime"),
-                       data.frame(colDesc="At Scene Time Converted to Full data time format",colName="AS_DateTime"),
-                       data.frame(colDesc="Timespan in minutes between At Scene Time and Event Clearance Date Time",colName="AS_TimeSpan"))
+```{r (S911IR_Head), echo=FALSE}
 S911IR_Head%>%knitr::kable()
 ```
 
@@ -201,8 +211,16 @@ S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n())%>%
     ungroup()%>%group_by(ECD)%>%
     summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%
     filter(overall>20000)%>%arrange(desc(overall))%>%
-    select(ECD,overall,daily_avg,daily_median)
+    select(ECD,overall,daily_avg,daily_median)%>%
+  knitr::kable()
 ```
+
+|ECD                                           | overall| daily_avg| daily_median|
+|:---------------------------------------------|-------:|---------:|------------:|
+|SUSPICIOUS PERSON                             |   40587|  19.08181|           19|
+|DISTURBANCE, OTHER                            |   35039|  16.53563|           16|
+|TRAFFIC (MOVING) VIOLATION                    |   26387|  12.46434|           12|
+|PARKING VIOLATION (EXCEPT ABANDONED VEHICLES) |   25803|  12.24051|           12|
 
 We can also see group of bars in project data plot that have occurences between 8'000 and 20'000 (in full data version, these numbers are between 20'000 and 50'0000). And do they what is their average occurence on daily basis? Which are the event clearance description that form the group? We are considering the project data in detail.
 
@@ -214,20 +232,63 @@ S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n())%>%
     summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%
     filter(overall>=8000 & overall<=20000)%>%
     arrange(desc(overall))%>%
-    select(ECD,overall,daily_avg,daily_median)
+    select(ECD,overall,daily_avg,daily_median)%>%
+  knitr::kable()
 ```
+
+|ECD                                   | overall| daily_avg| daily_median|
+|:-------------------------------------|-------:|---------:|------------:|
+|LIQUOR VIOLATION - INTOXICATED PERSON |   14792|  7.030418|            7|
+|SUSPICIOUS VEHICLE                    |   12031|  5.770264|            5|
+|THEFT - CAR PROWL                     |   11029|  5.320309|            5|
+|TRESPASS                              |   10681|  5.238352|            5|
+|THEFT - MISCELLANEOUS                 |   10226|  4.956859|            5|
+|MISCHIEF, NUISANCE COMPLAINTS         |   10149|  4.960411|            4|
+|ACCIDENT INVESTIGATION                |    9848|  9.917422|           10|
+|MOTOR VEHICLE COLLISION               |    9629| 12.297573|           12|
+|SHOPLIFT                              |    9612|  4.732644|            5|
+|NOISE DISTURBANCE                     |    9223|  4.634673|            4|
 
 Those ECDs that are present, but can be viewed as separate occurences should also be noted.
 So, what are the ECDs that have barely existent occurences? We are considering the project data in detail and picking out that have least number of occurences. But we are considering the fact that data is probably missing between 2013 and 2014. Therefore we are considering years between July, 2010- February 2013 and July, 2014 - December 2017.
 
 ```{r eval=FALSE}
-S911IR%>%filter((EC_DateTime<=make_date(year=2014,month=2,day=1))&
-                  (EC_DateTime>=make_date(year=2014,month=7,day=1)))%>
-    group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>%
-    ungroup()%>%group_by(ECD)%>%
-    summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%
-    filter(overall<50)%>%arrange(desc(overall))%>%select(ECD,overall,daily_avg,daily_median)
+S911IR%>%filter(!((EC_DateTime>make_date(year=2014,month=2,day=1))
+                  &(EC_DateTime<make_date(year=2014,month=7,day=1))))%>%
+  group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>%
+  ungroup()%>%group_by(ECD)%>%
+  summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%
+  filter(overall<50)%>%arrange(overall)%>%select(ECD,overall,daily_avg,daily_median)%>%
+  knitr::kable()
 ```
+
+|ECD                                                     | overall| daily_avg| daily_median|
+|:-------------------------------------------------------|-------:|---------:|------------:|
+|HARBOR - BOATING UNDER THE INFLUENCE                    |       1|  1.000000|            1|
+|HARBOR - MARINE FIRE                                    |       1|  1.000000|            1|
+|HARBOR - VESSEL RECOVERY                                |       2|  1.000000|            1|
+|SOAP (STAY OUT OF AREA OF PROSTITUTION) ORDER VIOLATION |       4|  1.000000|            1|
+|TRAFFIC - SCHOOL ZONE ENFORCEMENT                       |       6|  1.000000|            1|
+|LIQUOR VIOLATIONS (BUSINESS)                            |       7|  1.166667|            1|
+|TRAFFIC - BICYCLE VIOLATION                             |       8|  1.000000|            1|
+|HARBOR - VESSEL ABANDONED                               |      10|  1.000000|            1|
+|HARBOR - VESSEL THEFT                                   |      11|  1.000000|            1|
+|PORNOGRAPHY                                             |      14|  1.000000|            1|
+|AWOL                                                    |      15|  1.000000|            1|
+|GAMBLING                                                |      15|  1.000000|            1|
+|TRAFFIC - COMMUNITY TRAFFIC COMPLAINT (CTC)             |      15|  1.071429|            1|
+|LOST PERSON                                             |      18|  1.000000|            1|
+|ASSAULTS, GANG RELATED                                  |      20|  1.000000|            1|
+|HARBOR - BOAT ACCIDENT                                  |      20|  1.000000|            1|
+|CRISIS COMPLAINT - PICK-UP OR TRANSPORT                 |      23|  1.000000|            1|
+|HARBOR - ASSIST BOATER (NON EMERGENCY)                  |      25|  1.000000|            1|
+|DEMONSTRATION MANAGEMENT (Control tactics used)         |      26|  1.083333|            1|
+|HARBOR - CODE VIOLATION                                 |      31|  1.033333|            1|
+|NARCOTICS WARRANT SERVICE                               |      33|  1.031250|            1|
+|PURSUIT                                                 |      34|  1.000000|            1|
+|MENTAL PERSON PICK-UP OR TRANSPORT                      |      36|  1.058823|            1|
+|TRAFFIC CONTROL (SPECIAL EVENTS)                        |      46|  1.069767|            1|
+|HARBOR - DEBRIS, NAVIGATIONAL HAZARDS                   |      47|  1.021739|            1|
 
 We are using boxplot to see more clear picture. And here we are considering group of ECDs that have overall occurence of more than 8'000. For full data, the trimming point for "Large overall" occurences had been above 20'000. But for Project data it had been 8'000 for this plot. We are comparing the Project data and Full Kaggle data results side by side. But the overall picture is the same.
 
@@ -331,7 +392,11 @@ knitr::include_graphics(c("images/Rplot13_ECDHourlyAverages_FullData.png","image
 
 Hourly averages are practically the same. But in the sampled data, there is slight drop between 7AM and 8AM in daily average occurence. It can be due to sampling process of Project data.
 
+\newpage
+
 ## Final model performance
+
+
 
 \newpage
 

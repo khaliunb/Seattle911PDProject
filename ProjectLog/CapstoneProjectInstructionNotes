@@ -141,3 +141,12 @@ https://stackoverflow.com/questions/61546003/knitr-rmarkdown-figures-side-by-sid
 ### Working on final report analysis results part
 ########################################
 --- Putting plots in places and adding comments
+########################################
+### Khaliun.B 2021.05.19 16:01
+########################################
+--- Fixed data and prep bash script for header mistakes. Recommited the fixed data
+--- Worked on final report. Primary version of the report is ready. Fixed the sourcing script
+--- Commencing on to putting final touches to the project by determining final importance, Best tune for random forest and calculating the confusion matrix. Need a little break. We will continue tomorrow.
+---upload the files "Commit project progress before variable importance and best tune Khaliun.B 2021.05.19 16:05"
+-1. Commit files
+-2. Push files

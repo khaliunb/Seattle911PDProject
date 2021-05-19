@@ -1,4 +1,4 @@
-source("../Seattle911PDProject_Script.R", local = knitr::knit_global())
+source("../Seattle911PDProject_Script.R")
 
 #  - What is the overall picture of overall occurence of event clearance description? Also, do some ECDs prevail over others on daily basis? We will view the plots side by side to get a clear idea.
 S911IR%>%group_by(ECD)%>%summarise(overall = n()) %>%
@@ -12,13 +12,30 @@ S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%
   labs(y="ECD Daily Average Occurence", x="", subtitle="ECDs' Daily Average Occurence in Descending Order")
 # From the plot we see four bars that significantly exceed 20'000 in total occurence. 
 #  - So, which four are the event clearance description that occur the most? And do they also prevail on daily basis
-S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%>%group_by(ECD)%>%summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%filter(overall>20000)%>%arrange(desc(overall))%>%select(ECD,overall,daily_avg,daily_median)
+ECDLST1<-S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n())%>%
+  ungroup()%>%group_by(ECD)%>%
+  summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%
+  filter(overall>20000)%>%arrange(desc(overall))%>%
+  select(ECD,overall,daily_avg,daily_median)
+ECDLST1%>%knitr::kable()
 # We can also see group of bars that have occurences between 8'000 and 20'000. And do they what is their average occurence on daily basis 
 #  - Which are the event clearance description that form the group?
-S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%>%group_by(ECD)%>%summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%filter(overall>=8000 & overall<=20000)%>%arrange(desc(overall))%>%select(ECD,overall,daily_avg,daily_median)
+ECDLST2<-S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n())%>%
+  ungroup()%>%group_by(ECD)%>%
+  summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%
+  filter(overall>=8000 & overall<=20000)%>%
+  arrange(desc(overall))%>%
+  select(ECD,overall,daily_avg,daily_median)
+ECDLST2%>%knitr::kable()
 # Those ECDs that are present, but can be viewed as separate occurences should also be noted.
 #  - So, what are the ECDs that have barely existent occurences?
-S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%>%group_by(ECD)%>%summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%filter(overall<50)%>%arrange(desc(overall))%>%select(ECD,overall,daily_avg,daily_median)
+ECDLST3<-S911IR%>%filter(!((EC_DateTime>make_date(year=2014,month=2,day=1))&
+                    (EC_DateTime<make_date(year=2014,month=7,day=1))))%>%
+  group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>%
+  ungroup()%>%group_by(ECD)%>%
+  summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%
+  filter(overall<50)%>%arrange(overall)%>%select(ECD,overall,daily_avg,daily_median)
+ECDLST3%>%knitr::kable()
 # We are using boxplot to see more clear picture. And here we are considering group of ECDs that have overall occurence of more than 8'000
 S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%>%group_by(ECD)%>%
           summarise(overall=sum(daily),daily_avg=mean(daily),daily_median=median(daily))%>%
@@ -85,7 +102,7 @@ S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%
 #  - Is there relation between location and event clearance description/subgroup/description?
 #     - Is there certain prevalence in overall number of event clearance description/subgroup/description in certain location?
 
-locMatrix<-S911IR%>%group_by(ILoc,ECD)%>%summarize(count=as.integer(n()))%>%filter(count>100)%>%select(ILoc,ECD,count)%>%spread(key=ECD,value=count)
+#locMatrix<-S911IR%>%group_by(ILoc,ECD)%>%summarize(count=as.integer(n()))%>%filter(count>100)%>%select(ILoc,ECD,count)%>%spread(key=ECD,value=count)
 #locMatrix<-as.matrix(locMatrix)
 #rownames(locMatrix)<- locMatrix[,1]
 #locMatrix <- locMatrix[,-1]
@@ -141,4 +158,15 @@ S911IR%>%mutate(EC_Day=date(EC_DateTime),Hour=hour(EC_DateTime))%>%group_by(EC_D
 #     - On average, how many minutes does it take from At Scene Time and Event clearance Time for Event clearance description/subgroup/group? And which Event Clearance description/subgroup/group is most time consuming? Which ones are most quick to be resolved?
 S911IR%>%filter(!is.na(AS_TimeSpan)&AS_TimeSpan>0)%>%group_by(ECD,AS_TimeSpan)%>%arrange(ECD,AS_TimeSpan)%>%summarize(avg=mean(AS_TimeSpan),median=median(AS_TimeSpan))%>%arrange(desc(avg,median))%>%select(ECD,AS_TimeSpan,avg,median)%>%head(10)
 
-S911IR%>%head()
+#Training set variable importance
+
+#NAs are not permitted in random forest predictors. Therefore, we are correcting the data by changing ITDesc NAs to "UNKNOWN" character values.
+
+library(randomForest)
+train_set_prep<-train_set%>%select(ECD,ECDt,ILoc)%>%drop_na()
+summary(train_set_prep)
+x <- train_set_prep%>%select(ECDt,ILoc)
+y <- factor(train_set_prep$ECD)
+rf <- randomForest(x, y,  ntree = 10)
+imp <- importance(rf)
+imp
