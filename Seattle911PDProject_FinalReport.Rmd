@@ -88,19 +88,69 @@ Codes for the project were built and tested using:
 
 # Method
 
-## Data Set and training
+## Pre-processing the data
 
 Code downloads and populates the data file into **S911IR** data set.
 
-Basic overview of data, revealed that we probably have incomplete records before June of 2010. Therefore we are trimming the original data to records between 1st of July, 2010 and 31st December, 2017
+Additional features related to timing had been mutated into the data set we are using. Here is the list descriptions of data headers.
 
-Also, for large amount of records, Initial Type description/subgroup/group and At Scene time records are missing. 
+```{r (S911IR_Head), echo=FALSE}
+S911IR_Head%>%knitr::kable()
+```
 
-Summary of **S911IR** resulting data set:
+Basic overview of data, revealed that we probably have incomplete records before June of 2010. Therefore we are trimming the original data to records between 1st of July, 2010 and 31st December, 2017.
+
+Overview of data revealed data record number drop between 2013 and 2014 year. The data is probably missing. Therefore, We are removing this part of data from the data set.
+
+Also, for large amount of data for Initial Type description/subgroup/group and At Scene time records are missing. 
+
+We have chosen the features for our prediction. NAs are not permitted in random forest predictors. But the ITDesc, ITSG and ITG field NAs are valuable. We have to replace NAs within those columns by further processing the *S911IR* data set. Therefore, we are correcting the data by changing ITDesc, ITSG, ITG NAs to "UNKNOWN" character values.
+
+Here is how ITDesc and other initial type features' NAs looked like:
+
+```{r itdesc-na-before-replacement,eval=FALSE}
+S911IR%>%filter(is.na(ITDesc)|is.na(ITSG)|is.na(ITG))%>%
+  group_by(ITDesc,ITSG,ITG)%>%
+  summarise(n=n())%>%
+  select(ITDesc,ITSG,ITG,n)%>%
+  knitr::kable()
+```
+
+|ITDesc |ITSG |ITG |      n|
+|:------|:----|:---|------:|
+|NA     |NA   |NA  | 144483|
+
+And here is how ITDesc and other initial type features' NAs looked like after NA Replacement with "UNKNOWN" character string:
+
+```{r itdesc-na-after-replacement,eval=FALSE}
+#We are using this code to replace the fields
+S911IR<-S911IR%>%replace_na(list(ITDesc="UNKNOWN",ITSG="UNKNOWN",ITG="UNKNOWN"))
+
+S911IR%>%filter(is.na(ITDesc)|is.na(ITSG)|is.na(ITG))%>%
+  group_by(ITDesc,ITSG,ITG)%>%
+  summarise(n=n())%>%
+  select(ITDesc,ITSG,ITG,n)%>%
+  knitr::kable()
+```
+
+|ITDesc  |ITSG    |ITG     |      n|
+|:-------|:-------|:-------|------:|
+|UNKNOWN |UNKNOWN |UNKNOWN | 144483|
+
+Then, we trim the data columns by selecting all the features used for predictions and remove all NAs from the resulting data set by using this code:
+
+```{r s911ir-na-drop,eval=FALSE}
+S911IR<-S911IR%>%drop_na()
+```
+
+## Data Set for training
+
+We will take a glimpse at **S911IR** data set:
 
 ```{r (S911IR), echo=FALSE}
-summary(S911IR)
+S911IR%>%glimpse()
 ```
+Resulting data set has *`r nrow(S911IR)` rows* and *`r ncol(S911IR)` columns*. 
 
 For training purposes, data is divided into **train_set** and **test_set**:
 
@@ -124,6 +174,12 @@ summary(test_set)
 \newpage
 
 ## Questions Posed
+
+Before we handle any of the data? We have three questions to answer:
+
+* What Are We Predicting?
+* What Features Will We Use for Predictions?
+* How Are We Gonna Predict?
 
 From my perspective, the linear model is not applicable here. The best way to approach this problem is to train the data with random forest algorithm and see what happens. However, we need to develop a way to make it more interpretable. And also we have to consider the amount of resources and time random forest algorithm consumes.
 
@@ -166,27 +222,21 @@ Also we are considering recurrence of certain groups of events clearance and inc
 
 # Analysis and Results
 
-## Data Exploration and Further processing
-
-Additional features related to timing had been mutated into the data set we are using. Here is the list descriptions of data headers.
-
-```{r (S911IR_Head), echo=FALSE}
-S911IR_Head%>%knitr::kable()
-```
-
-Basic overview of data, revealed that we probably have incomplete records before June of 2010. Therefore we are trimming the original data to records between 1st of July, 2010 and 1st September, 2017.
-
-Overview of data revealed data record number drop between 2013 and 2014 year. The data is probably missing. Therefore, when we are training data, we should definitely consider regularization for ECD occurrence number. Another approach for solving the missing data problem was to divide the complete data set into two subsets and train them separately.
-
-From data, we see the incident description and the event clearance descriptions rarely match for events viewed as "criminal" and "suspicious". We also see that traffic incidents have clearer descriptions. This may relate to the fact that people's eyes recognize "suspicious" may be viewed differently depending on circumstances. We may view it as additional motivation for predicting the event clearance prior to dispatching police department.
-
-## Questions answered
+We will view overall occurence plots side by side to get a clear idea.
 
 Note: Results section contains plots and summary results of the analysis process. Plots had been saved and are stored in *images* folder.
 
+This section demonstrates the results for *S911IR* Project data before we pre-processed (removed any of data or cleaned from NAs).
+
 Due to the fact data was likely missing, it is probably best to compare the analysis results for both sampled data we are using and the complete 380MB data downloaded from Kaggle. This will help is see if the data was properly sampled, and also answer the question "What happens if we use the incomplete data set?". Plots have been aligned side by side for better comparison.
 
-Lists we represent here in the analysis results have been prepared using the sampled data we are using.
+Lists we represent here in the analysis results have been prepared using the sampled Project data we are using.
+
+## Questions answered
+
+### Basic Question: What are we predicting?
+
+We are predicting *ECD* value. From data, we see the incident description and the event clearance descriptions rarely match for events viewed as "criminal" and "suspicious". We also see that traffic incidents have clearer descriptions. This may relate to the fact that people's eyes recognize "suspicious" may be viewed differently depending on circumstances. We may view it as additional motivation for predicting the event clearance prior to dispatching police department.
 
 ### Question: What is the overall picture of overall occurence of event clearance description? Also, do some ECDs prevail over others on daily basis?
 

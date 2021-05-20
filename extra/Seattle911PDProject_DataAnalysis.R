@@ -1,4 +1,4 @@
-source("../Seattle911PDProject_Script.R")
+source("../Seattle911PDProject_Script.R", local = knitr::knit_global())
 
 #  - What is the overall picture of overall occurence of event clearance description? Also, do some ECDs prevail over others on daily basis? We will view the plots side by side to get a clear idea.
 S911IR%>%group_by(ECD)%>%summarise(overall = n()) %>%
@@ -157,16 +157,11 @@ S911IR%>%mutate(EC_Day=date(EC_DateTime),Hour=hour(EC_DateTime))%>%group_by(EC_D
 
 #     - On average, how many minutes does it take from At Scene Time and Event clearance Time for Event clearance description/subgroup/group? And which Event Clearance description/subgroup/group is most time consuming? Which ones are most quick to be resolved?
 S911IR%>%filter(!is.na(AS_TimeSpan)&AS_TimeSpan>0)%>%group_by(ECD,AS_TimeSpan)%>%arrange(ECD,AS_TimeSpan)%>%summarize(avg=mean(AS_TimeSpan),median=median(AS_TimeSpan))%>%arrange(desc(avg,median))%>%select(ECD,AS_TimeSpan,avg,median)%>%head(10)
-
 #Training set variable importance
-
-#NAs are not permitted in random forest predictors. Therefore, we are correcting the data by changing ITDesc NAs to "UNKNOWN" character values.
+#Chosen features for predictors are: ILoc, ITDesc, month(EC_DateTime), quarter(EC_DateTime)
+#We are predicting: ECD
 
 library(randomForest)
-train_set_prep<-train_set%>%select(ECD,ECDt,ILoc)%>%drop_na()
-summary(train_set_prep)
-x <- train_set_prep%>%select(ECDt,ILoc)
-y <- factor(train_set_prep$ECD)
-rf <- randomForest(x, y,  ntree = 10)
+rf <- randomForest(as.factor(ECD)~.,S911IR,ntree=10)
 imp <- importance(rf)
 imp

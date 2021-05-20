@@ -48,10 +48,10 @@ S911IR<-as.data.frame(S911IR)
 #Also we are adding some date and time fields for the analysis of data
 #"Event Clearance Date Converted to Full data time format","EC_DateTime"
 #"At Scene Time Converted to Full data time format","AS_DateTime"
-S911IR<-S911IR%>%mutate(EC_DateTime=parse_date_time(ECDt,'%m/%d/%Y %I:%M:%S %p'),na.rm=TRUE)
-S911IR<-S911IR%>%mutate(AS_DateTime=parse_date_time(ASTm,'%m/%d/%Y %I:%M:%S %p'),na.rm=FALSE)
+S911IR<-S911IR%>%mutate(EC_DateTime=parse_date_time(ECDt,'%m/%d/%Y %I:%M:%S %p'))
+S911IR<-S911IR%>%mutate(AS_DateTime=parse_date_time(ASTm,'%m/%d/%Y %I:%M:%S %p'))
 #"Timespan in minutes between At Scene Time and Event Clearance Date Time","AS_TimeSpan"
-S911IR<-S911IR%>%mutate(AS_TimeSpan=round(time_length(AS_DateTime %--% EC_DateTime,"minute")),na.rm=FALSE)
+S911IR<-S911IR%>%mutate(AS_TimeSpan=round(time_length(AS_DateTime %--% EC_DateTime,"minute")))
 
 #Adding new field names and descriptions to S911IR_Head data frame for reference
 S911IR_Head<-bind_rows(S911IR_Head,
@@ -62,10 +62,28 @@ S911IR_Head<-bind_rows(S911IR_Head,
 #### END: DATA SET FIELD NAME REFERENCES
 #############################################################################
 
-#     (!) Basic overview of data, revealed that we probably have incomplete records before June of 2010. Therefore we are trimming the original data to records between 1st of July, 2010 and 1st September, 2017
+#############################################################################
+#### BEGIN: CLEANING THE DATA
+#############################################################################
 
-#S911IR%>%filter(!is.na(EC_DateTime) & EC_DateTime>=make_date(year=2010,month=6,day=1))%>%mutate(EC_Year=year(EC_DateTime),EC_Month=month(EC_DateTime))%>%group_by(EC_Year,EC_Month)%>%arrange(EC_Year,EC_Month)%>%summarize(count=n())%>%arrange(EC_Year,EC_Month)%>%select(EC_Year,EC_Month,count)
-#S911IR<-S911IR%>%filter(!is.na(EC_DateTime) & EC_DateTime>=make_date(year=2010,month=7,day=1) & EC_DateTime<=make_date(year=2017,month=9,day=1))
+#Basic overview of data, revealed that we probably have incomplete records before June of 2010. Therefore we are trimming the original data to records between 1st of July, 2010 and 1st September, 2017
+S911IR<-S911IR%>%filter(EC_DateTime>=make_date(year=2010,month=7,day=1) & EC_DateTime<=make_date(year=2017,month=9,day=1))
+#Further examination of data, revealed that we probably have incomplete records before March of 2013 and July of 2014. Therefore we are trimming the original data.
+S911IR<-S911IR%>%filter(!(EC_DateTime>make_date(year=2013,month=3,day=1) & EC_DateTime<make_date(year=2014,month=7,day=1)))
+
+#NAs are not permitted in random forest predictors. But the ITDesc, ITSG and ITG field NAs are valuable. Therefore, we are correcting the data by changing ITDesc, ITSG, ITG NAs to "UNKNOWN" character values.
+S911IR<-S911IR%>%replace_na(list(ITDesc="UNKNOWN",ITSG="UNKNOWN",ITG="UNKNOWN"))
+
+#For training purpose, we are separating EC_DateTime values into separate fields
+S911IR<-S911IR%>%mutate(EC_Year=year(EC_DateTime),EC_Quarter=quarter(EC_DateTime),EC_Month=month(EC_DateTime),EC_Day=day(EC_DateTime),EC_Weekday=wday(EC_DateTime))
+#We are choosing features used for prediction, and dropping all the unneeded ones
+S911IR<-S911IR%>%select(CAD_CDW_ID,ECC,ECD,ILoc,ITDesc,EC_Year,EC_Quarter,EC_Month,EC_Day,EC_Weekday)
+
+#We are removing all NAs from the data set
+S911IR<-S911IR%>%drop_na()
+#############################################################################
+#### END: CLEANING THE DATA
+#############################################################################
 
 #############################################################################
 #### BEGIN: PREPARE TRAINING AND TEST SET
