@@ -77,7 +77,7 @@ S911IR<-S911IR%>%replace_na(list(ITDesc="UNKNOWN",ITSG="UNKNOWN",ITG="UNKNOWN"))
 #For training purpose, we are separating EC_DateTime values into separate fields
 S911IR<-S911IR%>%mutate(EC_Year=year(EC_DateTime),EC_Quarter=quarter(EC_DateTime),EC_Month=month(EC_DateTime),EC_Day=day(EC_DateTime),EC_Weekday=wday(EC_DateTime))
 #We are choosing features used for prediction, and dropping all the unneeded ones
-S911IR<-S911IR%>%select(CAD_CDW_ID,ECC,ECD,ILoc,ITDesc,EC_Year,EC_Quarter,EC_Month,EC_Day,EC_Weekday)
+S911IR<-S911IR%>%select(CAD_CDW_ID,ECC,ECD,ILoc,Longitude,Latitude,ITDesc,EC_Year,EC_Quarter,EC_Month,EC_Day,EC_Weekday)
 
 #We are removing all NAs from the data set
 S911IR<-S911IR%>%drop_na()

@@ -222,15 +222,13 @@ Also we are considering recurrence of certain groups of events clearance and inc
 
 # Analysis and Results
 
-We will view overall occurence plots side by side to get a clear idea.
-
 Note: Results section contains plots and summary results of the analysis process. Plots had been saved and are stored in *images* folder.
 
-This section demonstrates the results for *S911IR* Project data before we pre-processed (removed any of data or cleaned from NAs).
+This section demonstrates the results for **S911IR** Project data before we pre-processed (removed any of data or cleaned from NAs).
 
-Due to the fact data was likely missing, it is probably best to compare the analysis results for both sampled data we are using and the complete 380MB data downloaded from Kaggle. This will help is see if the data was properly sampled, and also answer the question "What happens if we use the incomplete data set?". Plots have been aligned side by side for better comparison.
+Due to the fact data was likely missing, it is probably best to compare the analysis results for both Project data we are using and the complete 380MB data downloaded from Kaggle. This will help is see if the data was properly sampled, and also answer the question "What happens if we use the incomplete data set?". Plots have been aligned side by side for better comparison.
 
-Lists we represent here in the analysis results have been prepared using the sampled Project data we are using.
+Lists we represent here in the analysis results have been prepared using the Project data we are using.
 
 ## Questions answered
 
@@ -254,7 +252,7 @@ knitr::include_graphics(c("images/Rplot2_ECDDailyAvgOccurence_FullData.png","ima
 
 From the plot we see some bars that significantly prevail over others. So, which are the event clearance description that occur the most? And do they also prevail on daily basis? We are considering the project data in detail.
 
-Project data for Large Occurence ECDs
+Project data for Large Occurence ECDs:
 
 ```{r eval=FALSE}
 S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n())%>%
@@ -357,16 +355,18 @@ knitr::include_graphics("images/Rplot4_ECDvsITDescDotplot_80MBData.png")
 For this Dot plot, alpha opaqueness represents high daily average Initial Type Description. 
 
 From the Project data plot we see clearly that:
+
 * "NA"s in ITDesc occur most frequently. But it is not a missing data. It is due to failure of callers to describe the incident. Operators at 911 do not initially know what happened.
-* ECD "Suspicious person","Disturbance, Other" is most prevalent for most reasons. Which we can attribute to the fact that this type of description is applicable to most circumstances.
-* ECD "PARKING VIOLATIONS (EXCEPT ABANDONED VEHICLES)" have the least daily average for ECD, but the most daily average for ITDesc. Which means while this type of ECD happens less, people identify the reason for this ECD most clearly.
++ ECD "Suspicious person","Disturbance, Other" is most prevalent for most reasons. Which we can attribute to the fact that this type of description is applicable to most circumstances.
++ ECD "PARKING VIOLATIONS (EXCEPT ABANDONED VEHICLES)" have the least daily average for ECD, but the most daily average for ITDesc. Which means while this type of ECD happens less, people identify the reason for this ECD most clearly.
 
 ```{r,dotplot-ecd-itdesc-project,fig.cap='Seattle 911 Incident Response: Event Clearance Description vs Initial Type Description - Full Kaggle Data', out.width="100%", echo=FALSE}
 knitr::include_graphics("images/Rplot4_ECDvsITDescDotplot_FullData.png")
 ```
 From full data, we see that:
+
 * DETOX - REQUEST FOR result in DISTURBANCE, OTHER
-* PARKING VIOLATIONS (EXCEPT ABANDONED VEHICLES), TRAFFIC - MOVING VIOLATION in ITDesc match the ECD directly
++ PARKING VIOLATIONS (EXCEPT ABANDONED VEHICLES), TRAFFIC - MOVING VIOLATION in ITDesc match the ECD directly
 
 And here we see another more insightful aspect:
 
@@ -384,13 +384,17 @@ For full data, the trimming point for "Large ECD" occurences had been above 50'0
 
 ### Question: Is there relation between timing and event clearance description?
 
-#### Was there increase/decrease in event clearance description overall occurrence over time? We are building Timeline plot to see this.
+#### Was there increase/decrease in event clearance description overall occurrence over time?
+
+We are building Timeline plot to see this.
 
 ```{r,plot-ecd-timeline,fig.cap='Seattle 911 Incident Response: ECD Timeline', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
 knitr::include_graphics(c("images/Rplot6_TimelineECD_FullData.png","images/Rplot6_TimelineECD_80MBData.png"))
 ```
 
-From the plot, we see sharp drop in daily total number around 2014. So what happened here? We investigate by detailing the plot by ECD and faceting daily averages by year versus month.
+From the plot, we see sharp drop in daily total number around 2014. So what happened here?
+
+We investigate by detailing the plot by ECD and faceting daily averages by year versus month.
 
 ```{r,plot-ecd-faceted-timeline, fig.cap='Seattle 911 Incident Response: ECD Timeline Faceted by Year and Month', fig.subcap=c('Full Kaggle Data','Project Data'), fig.show="hold", out.width="50%", echo=FALSE}
 knitr::include_graphics(c("images/Rplot7_FacetedTimelineByYearMonth_FullData.png","images/Rplot7_FacetedTimelineByYearMonth_80MBData.png"))
@@ -441,6 +445,79 @@ knitr::include_graphics(c("images/Rplot13_ECDHourlyAverages_FullData.png","image
 ```
 
 Hourly averages are practically the same. But in the sampled data, there is slight drop between 7AM and 8AM in daily average occurence. It can be due to sampling process of Project data.
+
+### Question: Is there relation between location and event clearance description?
+
+#### Is there certain prevalence in overall number of event clearance description in certain location?
+
+We are now proceeding with the cleaned data prepared for training. Are there certain locations where calls to 911 prevail? We are further considering the yearly median for each location. And we are going to determine the value for average yearly Incident Response encounter in Seattle for median by month of each location.
+
+```{r, eval=FALSE}
+loc_yearly_median<-S911IR%>%group_by(ILoc,EC_Year)%>%
+    summarize(count=as.integer(n()))%>%select(ILoc,EC_Year,count)%>%
+    group_by(ILoc)%>%summarise(year_med=median(count))%>%select(ILoc,year_med)
+seattle_loc_med_year_mean<-mean(loc_yearly_median$year_med)
+```
+
+[1] 2.537033
+
+Now we are ready to determine which locations exceed yearly norm for average location incident. From there, we are able to determine the monthly averages for these locations and filter out above average locations by months.
+
+```{r, eval=FALSE}
+locMatrix<-S911IR%>%group_by(ILoc,EC_Year,EC_Month)%>%summarise(count=as.integer(n()))%>%
+    group_by(ILoc,EC_Month,)%>%summarize(month_median=median(count))%>%
+    select(ILoc,EC_Month,month_median)%>%spread(key=EC_Month,value=month_median,fill = 0)%>%
+    mutate(month_sum = sum(c_across(where(is.numeric))))
+locMatrix<-locMatrix%>%filter(month_sum>=seattle_loc_med_year_mean)%>%
+    arrange(desc(month_sum))%>%select(-"month_sum")
+locMatrix<-as.matrix(locMatrix)
+rownames(locMatrix)<- locMatrix[,1]
+locMatrix<- locMatrix[,-1]
+mode(locMatrix)<-"integer"
+locMatrix[1:4,]%>%knitr::kable(align="c")
+```
+
+|                               | 1  | 2  | 3  | 4  | 5  | 6  | 7  | 8  | 9  | 10 | 11 | 12 |
+|:------------------------------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+|(47.600464242, -122.330807499) | 79 | 55 | 70 | 56 | 64 | 42 | 40 | 41 | 36 | 64 | 42 | 71 |
+|(47.600464, -122.33081)        | 64 | 59 | 67 | 58 | 57 | 63 | 59 | 48 | 14 | 0  | 55 | 82 |
+|(47.602413, -122.331085)       | 44 | 42 | 63 | 45 | 48 | 38 | 32 | 38 | 7  | 0  | 23 | 39 |
+|(47.60046424, -122.3308075)    | 46 | 31 | 32 | 33 | 43 | 25 | 34 | 24 | 22 | 33 | 36 | 34 |
+
+
+```{r, eval=FALSE}
+locMatrix <- sweep(locMatrix, 2, colMeans(locMatrix, na.rm = TRUE))
+mode(locMatrix)<-"integer"
+#Replace all the negative values with 0
+locMatrix<-pmax(locMatrix,0)
+locMatrix<-locMatrix[rowSums(locMatrix)>0,]
+
+locMatrix_Sums<-as.matrix(rowSums(locMatrix))
+locMatrix_Sums <- sweep(locMatrix_Sums, 1, rowMeans(locMatrix, na.rm = TRUE))
+conLocs<-as.list(rownames(locMatrix_Sums>0))
+```
+
+Here we have locations that have persistent occurences of ECDs by average and median. Now, let us see whether same ECDs occur at these locations. We count the groups of ECDs that have occurence for each of those locations and average the results by ECD.
+
+Let us see where exactly these points lie on the map by using Latitude and Longitude. And how intense they look. But we are not using every location. Just the top 1000 locations by ocurrence of ECDs
+
+```{r,plot-ecd-intensity-map,fig.cap='Seattle 911 Incident Response: ECD Intensity Map', fig.subcap='', out.width="80%", echo=FALSE}
+knitr::include_graphics("images/Rplot14_ECDIntensityMap_OverallSeattle.png")
+```
+
+We can see that at outskirts of the city, same ECDs occur in larger number.
+
+But what happens if we facet the same plot by month? But we have to choose the most intense locations for this. We are choosing 100 top intense locations.
+
+```{r,plot-ecd-intensity-map-month,fig.cap='Seattle 911 Incident Response: ECD Intensity Map Faceted by Month', fig.subcap='', out.width="80%", echo=FALSE}
+knitr::include_graphics("images/Rplot15_ECDIntensityMap_FacetedByMonth_Top100.png")
+```
+
+We can do the same for weekdays. Here we are considering daily totals averaged by Weekdays.
+
+```{r,plot-ecd-intensity-map-weekday,fig.cap='Seattle 911 Incident Response: ECD Intensity Map Faceted by Month', fig.subcap='', out.width="80%", echo=FALSE}
+knitr::include_graphics("images/Rplot16_ECDIntensityMap_FacetedByWeekday_Top100.png")
+```
 
 \newpage
 

@@ -98,17 +98,6 @@ S911IR%>%group_by(date(EC_DateTime),ECD)%>%summarise(daily = n()) %>% ungroup()%
 #For this version of the plot, color represents ITDesc groups, while ECDs are represented by shape.
 #For full data, the trimming point for "Large ECD" occurences had been above 50'000. But for Sample data it had been 20'000 for this plot. We are comparing the results side by side. But the overall picture is the same.
 
-#-----------------------------------------------------------
-#  - Is there relation between location and event clearance description/subgroup/description?
-#     - Is there certain prevalence in overall number of event clearance description/subgroup/description in certain location?
-
-#locMatrix<-S911IR%>%group_by(ILoc,ECD)%>%summarize(count=as.integer(n()))%>%filter(count>100)%>%select(ILoc,ECD,count)%>%spread(key=ECD,value=count)
-#locMatrix<-as.matrix(locMatrix)
-#rownames(locMatrix)<- locMatrix[,1]
-#locMatrix <- locMatrix[,-1]
-#locMatrix%>%knitr::kable(align="c")
-#dim(locMatrix)
-
 #  - Is there relation between timing and event clearance description/subgroup/description?
 #     - Was there increase/decrease in event clearance description/subgroup/description overall occurrence over time?
 S911IR%>%mutate(EC_Day=date(EC_DateTime))%>%group_by(EC_Day)%>%summarise(daily_total = n())%>%
@@ -161,7 +150,86 @@ S911IR%>%filter(!is.na(AS_TimeSpan)&AS_TimeSpan>0)%>%group_by(ECD,AS_TimeSpan)%>
 #Chosen features for predictors are: ILoc, ITDesc, month(EC_DateTime), quarter(EC_DateTime)
 #We are predicting: ECD
 
-library(randomForest)
-rf <- randomForest(as.factor(ECD)~.,S911IR,ntree=10)
-imp <- importance(rf)
-imp
+#-----------------------------------------------------------
+#  - Is there relation between location and event clearance description/subgroup/description?
+#     - Is there certain prevalence in overall number of event clearance description/subgroup/description in certain location?
+
+# We are now proceeding with the cleaned data prepared for training.
+# - Are there certain locations where calls to 911 prevail?
+#We are further considering the yearly median for each location. And we are going to determine the value for average yearly Incident Response encounter in Seattle for median by month of each location
+loc_yearly_median<-S911IR%>%group_by(ILoc,EC_Year)%>%summarize(count=as.integer(n()))%>%select(ILoc,EC_Year,count)%>%group_by(ILoc)%>%summarise(year_med=median(count))%>%select(ILoc,year_med)
+seattle_loc_med_year_mean<-mean(loc_yearly_median$year_med)
+seattle_loc_med_year_mean
+#Now we are ready to determine which locations exceed yearly norm for average location incident. From there, we are able to determine the monthly averages for these locations and filter out above average locations by months.
+locMatrix<-S911IR%>%group_by(ILoc,EC_Year,EC_Month)%>%summarise(count=as.integer(n()))%>%group_by(ILoc,EC_Month,)%>%summarize(month_median=median(count))%>%select(ILoc,EC_Month,month_median)%>%spread(key=EC_Month,value=month_median,fill = 0)%>%mutate(month_sum = sum(c_across(where(is.numeric))))
+locMatrix<-locMatrix%>%filter(month_sum>=seattle_loc_med_year_mean)%>%arrange(desc(month_sum))%>%select(-"month_sum")
+locMatrix<-as.matrix(locMatrix)
+rownames(locMatrix)<- locMatrix[,1]
+locMatrix<- locMatrix[,-1]
+mode(locMatrix)<-"integer"
+locMatrix[1:4,]%>%knitr::kable(align="c")
+
+locMatrix <- sweep(locMatrix, 2, colMeans(locMatrix, na.rm = TRUE))
+mode(locMatrix)<-"integer"
+#Replace all the negative values with 0
+locMatrix<-pmax(locMatrix,0)
+locMatrix<-locMatrix[rowSums(locMatrix)>0,]
+locMatrix[1:4,]%>%knitr::kable(align="c")
+
+locMatrix_Sums<-as.matrix(rowSums(locMatrix))
+locMatrix_Sums[15400:15463,]%>%knitr::kable(align="c")
+
+locMatrix_Sums <- sweep(locMatrix_Sums, 1, rowMeans(locMatrix, na.rm = TRUE))
+#Here we have locations that have persistent occurences of ECDs by average and median
+conLocs<-as.list(rownames(locMatrix_Sums>0))
+
+#Now, let us see whether same ECDs occur at these locations. We count the groups of ECDs that have occurence for each of those locations and average the results by ECD.
+ECDTypesByLoc<-S911IR%>%filter(ILoc %in% conLocs)%>%select(ILoc,ECD)%>%unique()%>%group_by(ILoc)%>%summarise(ECDTypeCount=log10(n()))%>%select(ILoc,ECDTypeCount)
+ECDCountsByLoc<-S911IR%>%filter(ILoc %in% conLocs)%>%group_by(ILoc,Longitude,Latitude)%>%summarise(ECDCount=log10(n()))
+ECDCountTypesByLoc<-ECDCountsByLoc%>%left_join(ECDTypesByLoc,by="ILoc")%>%mutate(ECDCountLog=log(ECDCount,ECDTypeCount))%>%arrange(desc(ECDCount),desc(ECDTypeCount))
+#Let us see where exactly these points lie on the map by using Lattitude and Longitude. And how intense they look. But we are not using every location. Just the top 1000 locations by ocurrence of ECDs
+ECDCountTypesByLoc%>%head(1000)%>%
+  ggplot(aes(x=Longitude,y=Latitude))+geom_point(aes(colour=ECDTypeCount,size=ECDCount,alpha=0.05))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1),
+        legend.justification = c("right", "bottom"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6))+
+  guides(color = guide_legend(order=1),
+         size = guide_legend(order=2),
+         alpha = FALSE)+
+  scale_y_log10(labels=NULL)+
+  labs(y="", x="ECD Intensity Map By Location", subtitle="")
+#We can see that at outskirts of the city, same ECDs occur in larger number
+
+#But what happens if we facet the same plot by month? But we have to choose the most intense locations for this. We are choosing 100 top intense locations.
+intenseLocs<-ECDCountTypesByLoc%>%select(Longitude,Latitude,ILoc)%>%distinct()%>%head(100)%>%pull(ILoc)%>%as.list()
+ECDTypesByLocMonth<-S911IR%>%filter(ILoc %in% intenseLocs)%>%select(ILoc,EC_Month,ECD)%>%unique()%>%group_by(ILoc,EC_Month)%>%summarise(ECDTypeCount=log10(n()))%>%select(ILoc,EC_Month,ECDTypeCount)
+ECDCountsByLocMonth<-S911IR%>%filter(ILoc %in% intenseLocs)%>%group_by(ILoc,EC_Year,EC_Month,Longitude,Latitude)%>%summarise(ECDCount=n())%>%group_by(ILoc,EC_Month,Longitude,Latitude)%>%summarise(ECDCountMonthlyAvg=mean(ECDCount))
+ECDCountTypesByLocMonth<-ECDCountsByLocMonth%>%left_join(ECDTypesByLocMonth,by=c("ILoc","EC_Month"))%>%mutate(ECDCountLog=log(ECDCountMonthlyAvg,ECDTypeCount))%>%arrange(EC_Month,desc(ECDCountMonthlyAvg),desc(ECDTypeCount))
+ECDCountTypesByLocMonth%>%
+  ggplot(aes(x=Longitude,y=Latitude))+geom_point(aes(colour=ECDTypeCount,size=ECDCountMonthlyAvg,alpha=0.05))+facet_wrap(.~EC_Month)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1),
+      legend.justification = c("right", "bottom"),
+      legend.box.just = "right",
+      legend.margin = margin(6, 6, 6, 6))+
+  guides(color = guide_legend(order=1),
+         size = guide_legend(order=2),
+         alpha = FALSE)+
+  scale_y_log10(labels=NULL)+
+  labs(y="", x="ECD Intensity Map Faceted by Month (Top 100 locations)", subtitle="")
+
+#We can do the same for weekdays?
+ECDTypesByLocWeekday<-S911IR%>%filter(ILoc %in% intenseLocs)%>%select(ILoc,EC_Weekday,ECD)%>%unique()%>%group_by(ILoc,EC_Weekday)%>%summarise(ECDTypeCount=log10(n()))%>%select(ILoc,EC_Weekday,ECDTypeCount)
+ECDCountsByLocWeekday<-S911IR%>%filter(ILoc %in% intenseLocs)%>%group_by(ILoc,EC_Year,EC_Month,EC_Day,EC_Weekday,Longitude,Latitude)%>%summarise(ECDCount=n())%>%group_by(ILoc,EC_Weekday,Longitude,Latitude)%>%summarise(ECDDayAvgByWeekday=mean(ECDCount))
+ECDCountTypesByLocWeekday<-ECDCountsByLocWeekday%>%left_join(ECDTypesByLocWeekday,by=c("ILoc","EC_Weekday"))%>%arrange(EC_Weekday,desc(ECDDayAvgByWeekday),desc(ECDTypeCount))
+ECDCountTypesByLocWeekday%>%
+  ggplot(aes(x=Longitude,y=Latitude))+geom_point(aes(colour=ECDTypeCount,size=ECDDayAvgByWeekday,alpha=0.05))+facet_wrap(.~EC_Weekday)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1),
+        legend.justification = c("right", "bottom"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6))+
+  guides(color = guide_legend(order=1),
+         size = guide_legend(order=2),
+         alpha = FALSE)+
+  scale_y_log10(labels=NULL)+
+  labs(y="", x="ECD Intensity Map Faceted by Weekday (Top 100 locations)", subtitle="")
