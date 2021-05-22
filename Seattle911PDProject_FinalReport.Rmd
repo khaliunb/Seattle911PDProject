@@ -47,7 +47,7 @@ source("Seattle911PDProject_Script.R", local = knitr::knit_global())
 
 # Introduction
 
-This is the `r rmarkdown::metadata$title` for `r rmarkdown::metadata$info_course` from `r rmarkdown::metadata$info_program` offered by `r rmarkdown::metadata$info_institution` prepared by `r rmarkdown::metadata$author`.
+This is the `r rmarkdown::metadata$title` for `r rmarkdown::metadata$info_course` from `r rmarkdown::metadata$info_program` offered by `r rmarkdown::metadata$info_institution`. Report is prepared by `r rmarkdown::metadata$author`.
 
 Final Report includes methodology and results of the analysis. Also, this report includes project environment description used for building and running the code.
 
@@ -58,7 +58,7 @@ This is a Machine Learning project. Main goal of the project consists in trainin
 Sub goal of the project consists in:
 
 * Analyzing **Seattle Police Department 911 Incident Response** data to obtain the best features from the data set and improve interpretability
-+ Analyzing variable importance
++ Choosing the best model for training
 + Obtaining best tune to achieve highest accuracy, specificity, sensitivity values in the confusion matrix
 
 ## Project Data and preprocessing for download
@@ -67,12 +67,12 @@ Project data is based on **Seattle Police Department 911 Incident Response** cle
 
 ## Project Files
 
-Project data and script files and folders are uploaded [*Seattle911PDProject Github Repository*](https://github.com/khaliunb/Seattle911PDProject.git)).  Uploaded Files Include:
+Project data and script files and folders are uploaded [*Seattle911PDProject Github Repository*](https://github.com/khaliunb/Seattle911PDProject.git)). Uploaded Files Include:
  
 * Data File - "data/SeattlePD911IR_80_MB.zip" available for download and used for the project script
-* RMarkdown Report File - "Seattle911PDProject_FinalReport.Rmd" which is the current report file
-* R Script File - "Seattle911PDProject_Script.R" that includes codes and comments for model fitting and training
-* PDF Report - "Seattle911PDProject_FinalReport.pdf"
++ RMarkdown Report File - "Seattle911PDProject_FinalReport.Rmd" which is the current report file
++ R Script File - "Seattle911PDProject_Script.R" that includes codes and comments for model fitting and training
++ PDF Report - "Seattle911PDProject_FinalReport.pdf"
 
 Github repository also holds additional files and folders used for the project and knitting the report.
 
@@ -175,13 +175,13 @@ summary(test_set)
 
 ## Questions Posed
 
-Before we handle any of the data? We have three questions to answer:
+Before we handle any of the data, we have three questions to answer:
 
 * What Are We Predicting?
 * What Features Will We Use for Predictions?
 * How Are We Gonna Predict?
 
-From my perspective, the linear model is not applicable here. The best way to approach this problem is to train the data with random forest algorithm and see what happens. However, we need to develop a way to make it more interpretable. And also we have to consider the amount of resources and time random forest algorithm consumes.
+From my perspective, the linear model is not applicable here. The best way to approach this problem is to cluster and train the data with knn algorithm and see what happens. However, we need to develop a way to make it more interpretable.
 
 By this point, we are looking at more definite description of our project's problem. We need to experiment with data, to test out different assumptions. General questions we needed to answer:
 
@@ -234,7 +234,7 @@ Lists we represent here in the analysis results have been prepared using the Pro
 
 ### Basic Question: What are we predicting?
 
-We are predicting *ECD* value. From data, we see the incident description and the event clearance descriptions rarely match for events viewed as "criminal" and "suspicious". We also see that traffic incidents have clearer descriptions. This may relate to the fact that people's eyes recognize "suspicious" may be viewed differently depending on circumstances. We may view it as additional motivation for predicting the event clearance prior to dispatching police department.
+We are predicting **ECD** (Event Clearance Description) value. From data, we see the incident description and the event clearance descriptions rarely match for events viewed as "criminal" and "suspicious". We also see that traffic incidents have clearer descriptions. This may relate to the fact that people's eyes recognize "suspicious" may be viewed differently depending on circumstances. We may view it as additional motivation for predicting the event clearance prior to dispatching police department.
 
 ### Question: What is the overall picture of overall occurence of event clearance description? Also, do some ECDs prevail over others on daily basis?
 
@@ -519,16 +519,115 @@ We can do the same for weekdays. Here we are considering daily totals averaged b
 knitr::include_graphics("images/Rplot16_ECDIntensityMap_FacetedByWeekday_Top100.png")
 ```
 
+## Chi-squared Tests
+
+As all of the data are non-continuous, we are turning to Pearson's Chi-Squared test for Count Data to determine the correlation between ECD~ITDesc, ECD~EC_Month, ECD~EC_Weekday, ECD~Iloc pairs separately.
+
+Chi-test for ECD~ILoc yielded pvalue of 1, while all the other pairs yielded 0.
+
+```{r pvalue-ecd-iloc-pair, eval=FALSE}
+#ECD~ILoc pair results
+set.seed(1)
+ECDILocMatrix<-S911IR%>%group_by(ECD,ILoc)%>%summarise(count=as.integer(n()))%>%select(ECD,ILoc,count)%>%arrange(count)%>%spread(key=ECD,value=count,fill = 0)
+ECDILocMatrix<-as.matrix(ECDILocMatrix)
+rownames(ECDILocMatrix)<- ECDILocMatrix[,1]
+ECDILocMatrix<- ECDILocMatrix[,-1]
+mode(ECDILocMatrix)<-"integer"
+rownamesECDILocMatrix<- rownames(ECDILocMatrix)
+ECDILocMatrix<- ECDILocMatrix[,-1]
+ECDILocMatrix<- sweep(ECDILocMatrix, 1, rowMeans(ECDILocMatrix, na.rm = TRUE))
+ECDILocMatrix<- sweep(ECDILocMatrix, 2, colMeans(ECDILocMatrix, na.rm = TRUE))
+ECDILocMatrix<-pmax(ECDILocMatrix,0)
+ECD_ITDescChi<-chisq.test(ECDILocMatrix)
+ECD_ITDescChi$p.value
+```
+
+[1] 1
+
+But we are refraining from any conclusion on this point.
+
+## KMeans clustering
+
+We will use kmeans clustering and we will see the results on the map.
+
+```{r kmeans-cluster-summary, eval=FALSE}
+#ECD~ILoc pair results
+rownames(ECDILocMatrix)<- rownamesECDILocMatrix
+
+k <- kmeans(ECDILocMatrix, centers = 100, nstart=25)
+summary(k)%>%knitr::kable()
+```
+
+|             |Length |Class  |Mode    |
+|:------------|:------|:------|:-------|
+|cluster      |71072  |-none- |numeric |
+|centers      |11500  |-none- |numeric |
+|totss        |1      |-none- |numeric |
+|withinss     |100    |-none- |numeric |
+|tot.withinss |1      |-none- |numeric |
+|betweenss    |1      |-none- |numeric |
+|size         |100    |-none- |numeric |
+|iter         |1      |-none- |numeric |
+|ifault       |1      |-none- |numeric |
+
+```{r kmeans-cluster-group-size, eval=FALSE}
+#ECD~ILoc pair kmeans clustering results
+S911IR%>%distinct(ILocGroup,ILoc)%>%group_by(ILocGroup)%>%
+  summarise(locations=n())%>%
+  arrange(desc(locations))%>%knitr::kable()
+```
+
+|ILocGroup | locations||ILocGroup | locations||ILocGroup | locations|
+|:---------|---------:||:---------|---------:||:---------|---------:|
+|14        |     18032||30        |      1991||76        |      1083|
+|52        |      4438||59        |      1981||22        |      1012|
+|94        |      4336||11        |      1832||13        |       992|
+|35        |      3253||55        |      1728||4         |       894|
+|57        |      2356||36        |      1574||29        |       886|
+|93        |      2288||18        |      1506||31        |       872|
+|88        |      2221||81        |      1436||23        |       862|
+|2         |      2129||61        |      1215||79        |       783|
+|...|
+
+```{r,kmeans-cluster-map-by-location,fig.cap='Seattle 911 Incident Response: KMeans Clusters Map By Location', fig.subcap=c('Larges Group','Other 99 Groups'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot17_KmeansClustersMapByLocation_100C_14.png","images/Rplot17_KmeansClustersMapByLocation_100C.png"))
+```
+
+Further, we will train the **S911IR** data with knn() algorithm.
+
 \newpage
 
 ## Final model performance
 
+The confusion matrix of the model trained with knn() algorithm is as follows:
+
 
 
 \newpage
 
-# Conclusion
+# Conclusion and Further Use
 
+We have trained basic and not-so-precise machine-learning algorithm. Accuracy, Sensitivity and Specifity results should be improved further for better use in real life.
+
+There is a similarity between records of US 911 and Mongolian 102 (Police Hotline), 103 (Medical Emergency Number) records. People describe the symptoms of the situation, and the operator spends some time evaluating the situation by asking questions. In many of the cases, both people in distress and the call receiving operator fail to describe the situation properly.
+
+With ECD predicting algorithm:
+
+* Time of the call would improve
++ Precision of questions posed by operator could be improved
++ Properly recognized prank calls will not affect the life-threatening or other serious situation calls
+
+## Tests and evaluation to be done
+
+The result predictions should be tested with real life situations. Further examination of data must be done regularly for improvement.
+
+## Technical requirements for the execution
+
+Mobile technology, government regulations restrict Mongolia from tracking the phone calls to its source. Prior to analyzing and training the data, we would need to improve the tracking ability for 102 and 103 operators.
+
+As mobile phones dominate the field, and people have unlimited access to smart phones, the calls should be considered to be done from mobile phones. If such project should be initiated, we would need access to mobile operators' VLR info, and we would need the VLR info to be gathered regularly or on demand.
+
+Even better solution would be creating an app for mobile phones that uses improved machine-learning algorithm. But we still would need the trained prediction run on the 102, 103 operators' side. Therefore the predicting function should be offered as an API available for developers to use.
 
 \newpage
 

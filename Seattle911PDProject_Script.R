@@ -85,17 +85,54 @@ S911IR<-S911IR%>%drop_na()
 #### END: CLEANING THE DATA
 #############################################################################
 
+####################################################################################
+#### Creating k-means clusters for ECD~ILoc pair
+####################################################################################
+set.seed(1)
+ECDILocMatrix<-S911IR%>%group_by(ECD,ILoc)%>%summarise(count=as.integer(n()))%>%select(ECD,ILoc,count)%>%arrange(count)%>%spread(key=ECD,value=count,fill = 0)
+ECDILocMatrix<-as.matrix(ECDILocMatrix)
+rownames(ECDILocMatrix)<- ECDILocMatrix[,1]
+ECDILocMatrix<- ECDILocMatrix[,-1]
+mode(ECDILocMatrix)<-"integer"
+rownamesECDILocMatrix<- rownames(ECDILocMatrix)
+ECDILocMatrix<- ECDILocMatrix[,-1]
+ECDILocMatrix<- sweep(ECDILocMatrix, 1, rowMeans(ECDILocMatrix, na.rm = TRUE))
+ECDILocMatrix<- sweep(ECDILocMatrix, 2, colMeans(ECDILocMatrix, na.rm = TRUE))
+ECDILocMatrix<-pmax(ECDILocMatrix,0)
+rownames(ECDILocMatrix)<- rownamesECDILocMatrix
+
+k <- kmeans(ECDILocMatrix, centers = 100, nstart=25)
+
+#This part of the code assigns group ids calculated by 
+#kmeans to "groups" variable
+groups <- factor(k$cluster)
+temp_g<-data.frame(ILoc=names(groups))
+
+#Mutate group numbers back to the dataset
+temp_g<-temp_g%>%mutate(ILocGroup=groups[names(groups)==.$ILoc])
+
+#Mutate groups back to original data
+S911IR <- S911IR %>% 
+  left_join(temp_g, by='ILoc')
+
+#Removing unnecessary variables
+rm(ECDILocMatrix,rownamesECDILocMatrix,temp_g)
+################################################################################
+#### END: This group of code performs kmeans clustering for ECD~ILoc pair
+################################################################################
+
 #############################################################################
 #### BEGIN: PREPARE TRAINING AND TEST SET
 #############################################################################
 #This part of the code divides S911IR data into
 # 80%:20% training set named "train_set" and test set named "train_set": Commented by Khaliun.B 2021.04.12
 #set.seed(47)
+S911IR_trainsmall<-sample_n(S911IR,10000)
 
-test_index <- createDataPartition(y = S911IR$ECD, times = 1,
+test_index <- createDataPartition(y = S911IR_trainsmall$ECD, times = 1,
                                   p = 0.2, list = FALSE)
-train_set <- S911IR[-test_index,]
-test_set <- S911IR[test_index,]
+train_set <- S911IR_trainsmall[-test_index,]
+test_set <- S911IR_trainsmall[test_index,]
 
 #This part of the code does the semi-joins test_set with training set first using movieId
 #and second using userId: Commented by Khaliun.B 2021.04.12
@@ -108,3 +145,31 @@ test_set <- test_set %>%
 #########################################################################################
 ### END: This group of code performs the data wrangling for Seattle PD 911 IR data analysis
 #########################################################################################
+
+################################################################################
+#### BEGIN: This group of code performs KNN training and prediction
+################################################################################
+#y<-as.factor(train_set$ECD)
+#x<-train_set%>%select(-ECD)
+
+#knn_predict<-knn3(x,y,k=100)
+
+#x <- as.matrix(train_set%>%select(-ECD))
+#y <- as.factor(train_set$ECD)
+#knn_fit <- knn3(x, y)
+#knn_fit <- knn3(y ~ ., data = train_set, k=5)
+#y_hat_knn <- predict(knn_fit, test_set,type=class)
+#confusionMatrix(data=knn_predict,reference=as.factor(test_set$ECD))$overall["Accuracy"]
+
+y <- as.factor(train_set$ECD)
+
+train_knn <- train(y ~ ., method = "knn", 
+                   data = train_set,
+                   tuneGrid = data.frame(k = seq(9, 71, 2)))
+
+train_knn$bestTune
+
+confusionMatrix(predict(train_knn, mnist_27$test, type = "raw"),mnist_27$test$y)$overall["Accuracy"]
+################################################################################
+#### END: This group of code performs KNN training and prediction
+################################################################################

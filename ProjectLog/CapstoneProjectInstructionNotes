@@ -169,3 +169,17 @@ https://stackoverflow.com/questions/61546003/knitr-rmarkdown-figures-side-by-sid
 ---upload the files "Commit project progress with final report analysis addition Khaliun.B 2021.05.20 20:41"
 -1. Commit files
 -2. Push files
+########################################
+### Khaliun.B 2021.05.21 09:27
+### Performing kmeans clustering
+########################################
+--- Using groups of ITDesc, Timing and location groups all together and separately. Let's see what happens
+--- In addition, we should probably look into Chi-squared test for correlation between ECD~ITDesc, ECD~Month, ECD~Weekday, ECD~Iloc
+--- We are choosing ECD~ILoc pair for Kmeans clustering
+########################################
+### Khaliun.B 2021.05.22 02:14
+### Performing knn training and tuning k
+########################################
+---upload the files "Commit project progress with knn training script addition Khaliun.B 2021.05.22 12:15"
+-1. Commit files
+-2. Push files

@@ -233,3 +233,100 @@ ECDCountTypesByLocWeekday%>%
          alpha = FALSE)+
   scale_y_log10(labels=NULL)+
   labs(y="", x="ECD Intensity Map Faceted by Weekday (Top 100 locations)", subtitle="")
+
+#Performing chi-squared test for pairs of matrices ECD~ITDesc, ECD~Month, ECD~Weekday, ECD~Iloc
+#As all of the data are non-continuous, we are turning to Pearson's Chi-Squared test for Count Data to determine the correlation between ECD~ITDesc, ECD~Month, ECD~Weekday, ECD~Iloc pairs separately.
+
+#ECD~ITDesc pair results
+ECDITDescMatrix<-S911IR%>%group_by(ECD,ITDesc)%>%summarise(count=as.integer(n()))%>%select(ECD,ITDesc,count)%>%arrange(count)%>%spread(key=ECD,value=count,fill = 0)
+ECDITDescMatrix<-as.matrix(ECDITDescMatrix)
+rownames(ECDITDescMatrix)<- ECDITDescMatrix[,1]
+ECDITDescMatrix<- ECDITDescMatrix[,-1]
+mode(ECDITDescMatrix)<-"integer"
+ECDITDescMatrix[1:3,1:2]%>%knitr::kable(align="c")
+ECDITDescMatrix<- sweep(ECDITDescMatrix, 1, rowMeans(ECDITDescMatrix, na.rm = TRUE))
+ECDITDescMatrix<- sweep(ECDITDescMatrix, 2, colMeans(ECDITDescMatrix, na.rm = TRUE))
+ECDITDescMatrix<-pmax(ECDITDescMatrix,0)
+image(ECDITDescMatrix)
+
+ECD_ITDescChi<-chisq.test(ECDITDescMatrix)
+ECD_ITDescChi$p.value
+#ECD~EC_Month pair results
+ECDEC_MonthMatrix<-S911IR%>%group_by(ECD,EC_Month)%>%summarise(count=as.integer(n()))%>%select(ECD,EC_Month,count)%>%arrange(count)%>%spread(key=ECD,value=count,fill = 0)
+ECDEC_MonthMatrix<-as.matrix(ECDEC_MonthMatrix)
+rownames(ECDEC_MonthMatrix)<- ECDEC_MonthMatrix[,1]
+ECDEC_MonthMatrix<- ECDEC_MonthMatrix[,-1]
+mode(ECDEC_MonthMatrix)<-"integer"
+image(ECDEC_MonthMatrix)
+
+ECDEC_MonthMatrix<- sweep(ECDEC_MonthMatrix, 1, rowMeans(ECDEC_MonthMatrix, na.rm = TRUE))
+ECDEC_MonthMatrix<- sweep(ECDEC_MonthMatrix, 2, colMeans(ECDEC_MonthMatrix, na.rm = TRUE))
+ECDEC_MonthMatrix<-pmax(ECDEC_MonthMatrix,0)
+image(ECDEC_MonthMatrix)
+ECD_ITDescChi<-chisq.test(ECDEC_MonthMatrix)
+ECD_ITDescChi$p.value
+#ECD~EC_Weekday pair results
+ECDEC_WeekdayMatrix<-S911IR%>%group_by(ECD,EC_Weekday)%>%summarise(count=as.integer(n()))%>%select(ECD,EC_Weekday,count)%>%arrange(count)%>%spread(key=ECD,value=count,fill = 0)
+ECDEC_WeekdayMatrix<-as.matrix(ECDEC_WeekdayMatrix)
+rownames(ECDEC_WeekdayMatrix)<- ECDEC_WeekdayMatrix[,1]
+ECDEC_WeekdayMatrix<- ECDEC_WeekdayMatrix[,-1]
+mode(ECDEC_WeekdayMatrix)<-"integer"
+image(ECDEC_WeekdayMatrix)
+ECD_ITDescChi<-chisq.test(ECDEC_WeekdayMatrix)
+ECD_ITDescChi$p.value
+
+ECDEC_WeekdayMatrix<- sweep(ECDEC_WeekdayMatrix, 1, rowMeans(ECDEC_WeekdayMatrix, na.rm = TRUE))
+ECDEC_WeekdayMatrix<- sweep(ECDEC_WeekdayMatrix, 2, colMeans(ECDEC_WeekdayMatrix, na.rm = TRUE))
+ECDEC_WeekdayMatrix<-pmax(ECDEC_WeekdayMatrix,0)
+image(ECDEC_WeekdayMatrix)
+ECD_ITDescChi<-chisq.test(ECDEC_WeekdayMatrix)
+ECD_ITDescChi$p.value
+#ECD~ILoc pair results
+set.seed(4)
+ECDILocMatrix<-S911IR%>%group_by(ECD,ILoc)%>%summarise(count=as.integer(n()))%>%select(ECD,ILoc,count)%>%arrange(count)%>%spread(key=ECD,value=count,fill = 0)
+ECDILocMatrix<-as.matrix(ECDILocMatrix)
+rownames(ECDILocMatrix)<- ECDILocMatrix[,1]
+ECDILocMatrix<- ECDILocMatrix[,-1]
+mode(ECDILocMatrix)<-"integer"
+ECDILocMatrix<- ECDILocMatrix[,-1]
+ECDILocMatrix<- sweep(ECDILocMatrix, 1, rowMeans(ECDILocMatrix, na.rm = TRUE))
+ECDILocMatrix<- sweep(ECDILocMatrix, 2, colMeans(ECDILocMatrix, na.rm = TRUE))
+ECDILocMatrix<-pmax(ECDILocMatrix,0)
+ECD_ITDescChi<-chisq.test(ECDILocMatrix)
+ECD_ITDescChi$p.value
+
+############################
+#We are re-creating the Seattle map ECD dot plot with groups as colors. We will deal with the largest group number 14 later
+ECDTypesByLoc<-S911IR%>%filter(ILocGroup!=14)%>%select(ILoc,ILocGroup,ECD)%>%unique()%>%group_by(ILoc,ILocGroup)%>%summarise(ECDTypeCount=n())%>%select(ILoc,ILocGroup,ECDTypeCount)
+ECDCountsByLoc<-S911IR%>%filter(ILocGroup!=14)%>%group_by(ILoc,Longitude,Latitude)%>%summarise(ECDCount=log10(n()))
+ECDCountTypesByLoc<-ECDCountsByLoc%>%left_join(ECDTypesByLoc,by="ILoc")%>%mutate(ECDCountLog=log(ECDCount,ECDTypeCount))%>%arrange(desc(ECDCount),desc(ECDTypeCount))
+ECDCountTypesByLoc%>%head()
+#Let us see where exactly these points lie on the map by using Lattitude and Longitude. And how intense they look. But we are not using every location. This is the plot for all the data except for group 10.
+ECDCountTypesByLoc%>%
+  ggplot(aes(x=Longitude,y=Latitude))+geom_point(aes(colour=ILocGroup,alpha=ECDTypeCount))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1),
+        legend.justification = c("right", "bottom"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6))+
+  guides(color = FALSE,
+         size = FALSE,
+         alpha = guide_legend(order=1))+
+  scale_y_log10(labels=NULL)+
+  labs(y="", x="KMeans Clusters Map By Location", subtitle="")
+
+#Now, let's see where the group 10 lies on a separate plot. This group is the largest one
+ECDTypesByLoc<-S911IR%>%filter(ILocGroup==14)%>%select(ILoc,ILocGroup,ECD)%>%unique()%>%group_by(ILoc,ILocGroup)%>%summarise(ECDTypeCount=n())%>%select(ILoc,ILocGroup,ECDTypeCount)
+ECDCountsByLoc<-S911IR%>%filter(ILocGroup==14)%>%group_by(ILoc,Longitude,Latitude)%>%summarise(ECDCount=log10(n()))
+ECDCountTypesByLoc<-ECDCountsByLoc%>%left_join(ECDTypesByLoc,by="ILoc")%>%mutate(ECDCountLog=log(ECDCount,ECDTypeCount))%>%arrange(desc(ECDCount),desc(ECDTypeCount))
+#Let us see where exactly these points lie on the map by using Lattitude and Longitude. And how intense they look. But we are not using every location. This is the plot for group 10.
+ECDCountTypesByLoc%>%
+  ggplot(aes(x=Longitude,y=Latitude))+geom_point(aes(colour=ECDTypeCount,alpha=ECDCount))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1),
+        legend.justification = c("right", "bottom"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6))+
+  guides(color = guide_legend(order=1),
+         size = guide_legend(order=2),
+         alpha = FALSE)+
+  scale_y_log10(labels=NULL)+
+  labs(y="", x="KMeans Clusters Map By Location: Largest Group", subtitle="")
