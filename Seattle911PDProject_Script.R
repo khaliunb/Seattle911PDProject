@@ -121,6 +121,34 @@ rm(ECDILocMatrix,rownamesECDILocMatrix,temp_g)
 #### END: This group of code performs kmeans clustering for ECD~ILoc pair
 ################################################################################
 
+####################################################################################
+#### BEGIN: Preparing the data for training
+####################################################################################
+#And we are turning ECD value into numbers and naming the feature ECDn
+ECDCodes<-S911IR%>%distinct(ECD)
+ECDCodes<-as.data.frame(ECDCodes)
+dfECDCodes<-data.frame(ECDn=seq(1:nrow(ECDCodes)),"ECD"=ECDCodes)
+rm(ECDCodes)
+#And we are turning ITDesc value into numbers and naming the feature ITDescN
+ITDescCodes<-S911IR%>%distinct(ITDesc)
+ITDescCodes<-as.data.frame(ITDescCodes)
+dfITDescCodes<-data.frame(ITDescN=seq(1:nrow(ITDescCodes)),"ITDesc"=ITDescCodes)
+rm(ITDescCodes)
+#And we are turning ILoc value into numbers and naming the feature ILocN
+ILocCodes<-S911IR%>%distinct(ILoc)
+ILocCodes<-as.data.frame(ILocCodes)
+dfILocCodes<-data.frame(ILocN=seq(1:nrow(ILocCodes)),"ILoc"=ILocCodes)
+rm(ILocCodes)
+#We are incorporating all the codes into the original data set
+S911IR<-S911IR%>%left_join(dfECDCodes,by="ECD")
+S911IR<-S911IR%>%left_join(dfITDescCodes,by="ITDesc")
+S911IR<-S911IR%>%left_join(dfILocCodes,by="ILoc")
+#And we are trimming the ILocGroup NA values just in case
+S911IR<-S911IR%>%filter(!is.na(ILocGroup))
+####################################################################################
+#### END: Preparing the data for training
+####################################################################################
+
 #############################################################################
 #### BEGIN: PREPARE TRAINING AND TEST SET
 #############################################################################
@@ -136,8 +164,8 @@ test_set <- S911IR_trainsmall[test_index,]
 
 #This part of the code does the semi-joins test_set with training set first using movieId
 #and second using userId: Commented by Khaliun.B 2021.04.12
-test_set <- test_set %>% 
-  semi_join(train_set, by = "CAD_CDW_ID")
+#test_set <- test_set %>% 
+#  semi_join(train_set, by = "CAD_CDW_ID")
 #############################################################################
 #### END: DATA SET FIELD NAME REFERENCES
 #############################################################################
@@ -160,16 +188,45 @@ test_set <- test_set %>%
 #knn_fit <- knn3(y ~ ., data = train_set, k=5)
 #y_hat_knn <- predict(knn_fit, test_set,type=class)
 #confusionMatrix(data=knn_predict,reference=as.factor(test_set$ECD))$overall["Accuracy"]
+#train_set<-train_set%>%select(ECD,Longitude,Latitude,ILocGroup,ITDesc,EC_Quarter,EC_Month,EC_Day,EC_Weekday)
+#test_set<-test_set%>%select(ECD,Longitude,Latitude,ILocGroup,ITDesc,EC_Quarter,EC_Month,EC_Day,EC_Weekday)
+train_set<-train_set%>%select(ECD,Latitude,Longitude,ITDescN,EC_Day)
+test_set<-test_set%>%select(ECD,Latitude,Longitude,ITDescN,EC_Day)
 
-y <- as.factor(train_set$ECD)
+#train_knn <- train(ECDn~Longitude+Latitude,data=train_set, method = "knn",
+#                   tuneGrid = data.frame(k = seq(200, 300, 2)))
 
-train_knn <- train(y ~ ., method = "knn", 
-                   data = train_set,
-                   tuneGrid = data.frame(k = seq(9, 71, 2)))
+#train_knn <- train(train_set[ ,-1], train_set[,1],
+#                   method = "knn",
+#                   tuneGrid = data.frame(k = seq(10, 100, 10)))
+#plot(train_knn)
+#fit_knn <- knn3(train_set[ ,-1], factor(train_set[,1]),  k = 292)
+#y_hat_knn <- predict(fit_rf, test_set[ ,-1])$yPred
+#cm <- confusionMatrix(y_hat_knn, factor(test_set[,1]))
+#cm$overall["Accuracy"]
 
-train_knn$bestTune
+#library(Rborist)
+train_rf <-  train(train_set[, -1], factor(train_set[,1]),
+                   method = "rf",
+                   nTree = 500,
+                   tuneGrid = data.frame(mtry = seq(10, 100, 10)),
+                   nSamp = 10000)
+ggplot(train_rf)
+train_rf$bestTune%>%knitr::kable()
+varImp(train_rf)
+library(randomForest)
+fit_rf <- randomForest(train_set[, -1], factor(train_set[,1]),ntree=500)
+y_hat_rf <- predict(fit_rf, test_set[ ,-1])
+cm <- confusionMatrix(y_hat_rf, factor(test_set[,1]))
+cm$overall["Accuracy"]
 
-confusionMatrix(predict(train_knn, mnist_27$test, type = "raw"),mnist_27$test$y)$overall["Accuracy"]
+#confusionMatrix(predict(train_knn, test_set, type = "raw"),test_set$ECDn)$overall["Accuracy"]
+
+#predictions failed for Resample01: k= 9 Error in dimnames(x) <- dn : 
+#length of 'dimnames' [2] not equal to array extent
+
+#Something is wrong; all the Accuracy metric values are missing:
+
 ################################################################################
 #### END: This group of code performs KNN training and prediction
 ################################################################################

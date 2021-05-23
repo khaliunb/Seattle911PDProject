@@ -599,9 +599,76 @@ Further, we will train the **S911IR** data with knn() algorithm.
 
 ## Final model performance
 
-The confusion matrix of the model trained with knn() algorithm is as follows:
+With analysis, we have determined that ECD is largely dependent on location, than any other feature.
+Therefore we are proceeding with tuning a knn() model.
+
+We have used this script for tuning *k* value for knn3() algorithm
+
+```{r knn-training-tuning, eval=FALSE}
+train_knn <- train(ECDn~Longitude+Latitude,data=train_set, method = "knn",
+                   tuneGrid = data.frame(k = seq(200, 300, 2)))
+
+train_knn$bestTune%>%knitr::kable()
+```
+
+|   |   k|
+|:--|---:|
+|47 | 292|
 
 
+We have tuned the knn with two separate sequences (9:200 and 200:300) to arrive at the final *k* value.
+And we see the plot for this tuning process as follows:
+
+```{r,plot-knn-tuning, fig.cap='k Parameter Tuning', fig.subcap=c('k = seq(9, 200, 2)','k = seq(200, 300, 2)'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot_KnnTuning.png","images/Rplot_KnnTuning_k292.png"))
+```
+
+We fit the model with following code:
+
+And the confusion matrix of the model trained with knn() algorithm is as follows:
+
+### Random Forest Training
+
+```{r, eval=FALSE}
+train_rf <-  train(train_set[, -1], factor(train_set[,1]),
+                   method = "rf",
+                   nTree = 500,
+                   tuneGrid = data.frame(mtry = seq(10, 100, 10)),
+                   nSamp = 10000)
+
+train_rf$bestTune%>%knitr::kable()
+```
+
+|   | mtry|
+|:--|----:|
+|4  |   40|
+
+```{r,plot-knn-tuning, fig.cap='Random Forest Parameter Tuning', fig.subcap=c('ntree = 100','ntree = 500'), fig.show="hold", out.width="50%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot_RF_MTry_Ntree100_nSamp10000_LatLongITDescNECDay.png","images/Rplot_RF_MTry_Ntree500_nSamp10000_LatLongITDescNECDay.png"))
+```
+
+```{r, eval=FALSE}
+varImp(train_rf)
+```
+
+rf variable importance
+
+          Overall
+ITDescN    100.00
+Latitude    48.01
+Longitude   46.67
+EC_Day       0.00
+
+```{r, eval=FALSE}
+library(randomForest)
+fit_rf <- randomForest(train_set[, -1], factor(train_set[,1]),ntree=500)
+y_hat_rf <- predict(fit_rf, test_set[ ,-1])
+cm <- confusionMatrix(y_hat_rf, factor(test_set[,1]))
+cm$overall["Accuracy"]
+```
+
+Accuracy 
+0.3646139
 
 \newpage
 
