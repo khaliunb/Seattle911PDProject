@@ -7,10 +7,10 @@ library(tidyverse)
 library(caret)
 library(lubridate)
 
-#dl <- tempfile()
-#download.file("https://github.com/khaliunb/Seattle911PDProject/raw/main/data/SeattlePD911IR_80_MB.zip", dl)
-#unzip(dl,exdir="data/")
-#rm(dl)
+dl <- tempfile()
+download.file("https://github.com/khaliunb/Seattle911PDProject/raw/main/data/SeattlePD911IR_80_MB.zip", dl)
+unzip(dl,exdir="data/")
+rm(dl)
 
 # Read the data
 S911IR<-read_csv("data/SeattlePD911IR_80_MB.csv")
@@ -86,42 +86,6 @@ S911IR<-S911IR%>%drop_na()
 #############################################################################
 
 ####################################################################################
-#### Creating k-means clusters for ECD~ILoc pair
-####################################################################################
-set.seed(1)
-ECDILocMatrix<-S911IR%>%group_by(ECD,ILoc)%>%summarise(count=as.integer(n()))%>%select(ECD,ILoc,count)%>%arrange(count)%>%spread(key=ECD,value=count,fill = 0)
-ECDILocMatrix<-as.matrix(ECDILocMatrix)
-rownames(ECDILocMatrix)<- ECDILocMatrix[,1]
-ECDILocMatrix<- ECDILocMatrix[,-1]
-mode(ECDILocMatrix)<-"integer"
-rownamesECDILocMatrix<- rownames(ECDILocMatrix)
-ECDILocMatrix<- ECDILocMatrix[,-1]
-ECDILocMatrix<- sweep(ECDILocMatrix, 1, rowMeans(ECDILocMatrix, na.rm = TRUE))
-ECDILocMatrix<- sweep(ECDILocMatrix, 2, colMeans(ECDILocMatrix, na.rm = TRUE))
-ECDILocMatrix<-pmax(ECDILocMatrix,0)
-rownames(ECDILocMatrix)<- rownamesECDILocMatrix
-
-k <- kmeans(ECDILocMatrix, centers = 100, nstart=25)
-
-#This part of the code assigns group ids calculated by 
-#kmeans to "groups" variable
-groups <- factor(k$cluster)
-temp_g<-data.frame(ILoc=names(groups))
-
-#Mutate group numbers back to the dataset
-temp_g<-temp_g%>%mutate(ILocGroup=groups[names(groups)==.$ILoc])
-
-#Mutate groups back to original data
-S911IR <- S911IR %>% 
-  left_join(temp_g, by='ILoc')
-
-#Removing unnecessary variables
-rm(ECDILocMatrix,rownamesECDILocMatrix,temp_g)
-################################################################################
-#### END: This group of code performs kmeans clustering for ECD~ILoc pair
-################################################################################
-
-####################################################################################
 #### BEGIN: Preparing the data for training
 ####################################################################################
 #And we are turning ECD value into numbers and naming the feature ECDn
@@ -143,8 +107,8 @@ rm(ILocCodes)
 S911IR<-S911IR%>%left_join(dfECDCodes,by="ECD")
 S911IR<-S911IR%>%left_join(dfITDescCodes,by="ITDesc")
 S911IR<-S911IR%>%left_join(dfILocCodes,by="ILoc")
-#And we are trimming the ILocGroup NA values just in case
-S911IR<-S911IR%>%filter(!is.na(ILocGroup))
+#And we are trimming the NA values again, just in case
+S911IR<-S911IR%>%drop_na()
 ####################################################################################
 #### END: Preparing the data for training
 ####################################################################################
@@ -153,19 +117,15 @@ S911IR<-S911IR%>%filter(!is.na(ILocGroup))
 #### BEGIN: PREPARE TRAINING AND TEST SET
 #############################################################################
 #This part of the code divides S911IR data into
-# 80%:20% training set named "train_set" and test set named "train_set": Commented by Khaliun.B 2021.04.12
+# 80%:20% training set named "train_set" and test set named "train_set": Commented by Khaliun.B 2021.05.24
 #set.seed(47)
-S911IR_trainsmall<-sample_n(S911IR,10000)
+S911IR_trainsmall<-sample_n(S911IR,100000)
 
 test_index <- createDataPartition(y = S911IR_trainsmall$ECD, times = 1,
                                   p = 0.2, list = FALSE)
 train_set <- S911IR_trainsmall[-test_index,]
 test_set <- S911IR_trainsmall[test_index,]
 
-#This part of the code does the semi-joins test_set with training set first using movieId
-#and second using userId: Commented by Khaliun.B 2021.04.12
-#test_set <- test_set %>% 
-#  semi_join(train_set, by = "CAD_CDW_ID")
 #############################################################################
 #### END: DATA SET FIELD NAME REFERENCES
 #############################################################################
@@ -175,58 +135,39 @@ test_set <- S911IR_trainsmall[test_index,]
 #########################################################################################
 
 ################################################################################
-#### BEGIN: This group of code performs KNN training and prediction
+#### BEGIN: This group of code performs Random Forest and KNN training
+#### This group of code takes a long time to run. So please be careful.
 ################################################################################
-#y<-as.factor(train_set$ECD)
-#x<-train_set%>%select(-ECD)
+train_set<-train_set%>%select(ECD,Latitude,Longitude,ITDescN,EC_Year,EC_Quarter,EC_Month,EC_Day,EC_Weekday)
+test_set<-test_set%>%select(ECD,Latitude,Longitude,ITDescN,EC_Year,EC_Quarter,EC_Month,EC_Day,EC_Weekday)
 
-#knn_predict<-knn3(x,y,k=100)
-
-#x <- as.matrix(train_set%>%select(-ECD))
-#y <- as.factor(train_set$ECD)
-#knn_fit <- knn3(x, y)
-#knn_fit <- knn3(y ~ ., data = train_set, k=5)
-#y_hat_knn <- predict(knn_fit, test_set,type=class)
-#confusionMatrix(data=knn_predict,reference=as.factor(test_set$ECD))$overall["Accuracy"]
-#train_set<-train_set%>%select(ECD,Longitude,Latitude,ILocGroup,ITDesc,EC_Quarter,EC_Month,EC_Day,EC_Weekday)
-#test_set<-test_set%>%select(ECD,Longitude,Latitude,ILocGroup,ITDesc,EC_Quarter,EC_Month,EC_Day,EC_Weekday)
-train_set<-train_set%>%select(ECD,Latitude,Longitude,ITDescN,EC_Day)
-test_set<-test_set%>%select(ECD,Latitude,Longitude,ITDescN,EC_Day)
-
-#train_knn <- train(ECDn~Longitude+Latitude,data=train_set, method = "knn",
-#                   tuneGrid = data.frame(k = seq(200, 300, 2)))
-
-#train_knn <- train(train_set[ ,-1], train_set[,1],
-#                   method = "knn",
-#                   tuneGrid = data.frame(k = seq(10, 100, 10)))
-#plot(train_knn)
-#fit_knn <- knn3(train_set[ ,-1], factor(train_set[,1]),  k = 292)
-#y_hat_knn <- predict(fit_rf, test_set[ ,-1])$yPred
-#cm <- confusionMatrix(y_hat_knn, factor(test_set[,1]))
-#cm$overall["Accuracy"]
-
-#library(Rborist)
+#### We are training the Random Forest model. Training script ran 80 minutes.
 train_rf <-  train(train_set[, -1], factor(train_set[,1]),
                    method = "rf",
                    nTree = 500,
-                   tuneGrid = data.frame(mtry = seq(10, 100, 10)),
+                   tuneGrid = data.frame(mtry = seq(10, 200, 10)),
                    nSamp = 10000)
 ggplot(train_rf)
 train_rf$bestTune%>%knitr::kable()
 varImp(train_rf)
 library(randomForest)
-fit_rf <- randomForest(train_set[, -1], factor(train_set[,1]),ntree=500)
+fit_rf <- randomForest(train_set[, -1], factor(train_set[,1]), ntree = 500, mtry = 170)
+importance(fit_rf)
+varImpPlot(fit_rf,type=2)
 y_hat_rf <- predict(fit_rf, test_set[ ,-1])
 cm <- confusionMatrix(y_hat_rf, factor(test_set[,1]))
-cm$overall["Accuracy"]
+cm$overall%>%knitr::kable()
 
-#confusionMatrix(predict(train_knn, test_set, type = "raw"),test_set$ECDn)$overall["Accuracy"]
+#### Now we are training Knn model with 3 features. This script ran 192 minutes.
+train_set<-train_set%>%select(ECD,Latitude,Longitude,ITDescN)
+test_set<-test_set%>%select(ECD,Latitude,Longitude,ITDescN)
 
-#predictions failed for Resample01: k= 9 Error in dimnames(x) <- dn : 
-#length of 'dimnames' [2] not equal to array extent
-
-#Something is wrong; all the Accuracy metric values are missing:
-
+train_knn <- train(train_set[ ,-1], factor(train_set[,1]),
+                   method = "knn",
+                   tuneGrid = data.frame(k = seq(10, 300, 10)))
+plot(train_knn)
+train_knn$bestTune%>%knitr::kable()
+max(train_knn$results$Accuracy)%>%knitr::kable()
 ################################################################################
 #### END: This group of code performs KNN training and prediction
 ################################################################################

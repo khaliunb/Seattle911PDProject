@@ -1,7 +1,7 @@
 ---
 title: "Seattle 911 Police Department Incident Response Data Analysis Final Report"
 author: "Khaliun Bat-Ochir"
-date: "May 14th, 2021"
+date: "May 25th, 2021"
 emails:
   - "khaliun83@yahoo.com"
   - "khaliun@spoon.mn"
@@ -559,7 +559,7 @@ summary(k)%>%knitr::kable()
 ```
 
 |             |Length |Class  |Mode    |
-|:------------|:------|:------|:-------|
+|-------------|-------|-------|--------|
 |cluster      |71072  |-none- |numeric |
 |centers      |11500  |-none- |numeric |
 |totss        |1      |-none- |numeric |
@@ -577,104 +577,180 @@ S911IR%>%distinct(ILocGroup,ILoc)%>%group_by(ILocGroup)%>%
   arrange(desc(locations))%>%knitr::kable()
 ```
 
-|ILocGroup | locations||ILocGroup | locations||ILocGroup | locations|
-|:---------|---------:||:---------|---------:||:---------|---------:|
-|14        |     18032||30        |      1991||76        |      1083|
-|52        |      4438||59        |      1981||22        |      1012|
-|94        |      4336||11        |      1832||13        |       992|
-|35        |      3253||55        |      1728||4         |       894|
-|57        |      2356||36        |      1574||29        |       886|
-|93        |      2288||18        |      1506||31        |       872|
-|88        |      2221||81        |      1436||23        |       862|
-|2         |      2129||61        |      1215||79        |       783|
-|...|
+ILocGroup | locations|ILocGroup | locations|ILocGroup | locations
+----------|----------|----------|----------|----------|----------
+14        |     18032|30        |      1991|76        |      1083
+52        |      4438|59        |      1981|22        |      1012
+94        |      4336|11        |      1832|13        |       992
+35        |      3253|55        |      1728|4         |       894
+57        |      2356|36        |      1574|29        |       886
+93        |      2288|18        |      1506|31        |       872
+88        |      2221|81        |      1436|23        |       862
+2         |      2129|61        |      1215|...       |       ...
 
 ```{r,kmeans-cluster-map-by-location,fig.cap='Seattle 911 Incident Response: KMeans Clusters Map By Location', fig.subcap=c('Larges Group','Other 99 Groups'), fig.show="hold", out.width="50%", echo=FALSE}
 knitr::include_graphics(c("images/Rplot17_KmeansClustersMapByLocation_100C_14.png","images/Rplot17_KmeansClustersMapByLocation_100C.png"))
 ```
 
-Further, we will train the **S911IR** data with knn() algorithm.
-
 \newpage
 
 ## Final model performance
 
-With analysis, we have determined that ECD is largely dependent on location, than any other feature.
-Therefore we are proceeding with tuning a knn() model.
+Further, we will train the **S911IR** data with randomForest and knn method.
 
-We have used this script for tuning *k* value for knn3() algorithm
+### Random Forest: Growing the tree
 
-```{r knn-training-tuning, eval=FALSE}
-train_knn <- train(ECDn~Longitude+Latitude,data=train_set, method = "knn",
-                   tuneGrid = data.frame(k = seq(200, 300, 2)))
+For tuning and running, we have prepared the **train_set** and **test_set** with variety of subsamples starting with 10'000 and ending with 100'000.
 
-train_knn$bestTune%>%knitr::kable()
+Here is the script:
+
+```{r, eval=FALSE}
+S911IR_trainsmall<-sample_n(S911IR,100000)
+
+test_index <- createDataPartition(y = S911IR_trainsmall$ECD, times = 1,
+                                  p = 0.2, list = FALSE)
+train_set <- S911IR_trainsmall[-test_index,]
+test_set <- S911IR_trainsmall[test_index,]
 ```
 
-|   |   k|
-|:--|---:|
-|47 | 292|
+We have tuned random forest model for variety of features and number of features. With analysis, we have determined that ECD is largely dependent on location, than any other feature. Therefore, we started with location features and added features with each run and with variety of nTree, mTry and nSamp parameters for the training. At final, we have chosen 8 features for the random forest. We are not using **ILocGroup** feature calculated by kmeans clustering in the final model.
 
-
-We have tuned the knn with two separate sequences (9:200 and 200:300) to arrive at the final *k* value.
-And we see the plot for this tuning process as follows:
-
-```{r,plot-knn-tuning, fig.cap='k Parameter Tuning', fig.subcap=c('k = seq(9, 200, 2)','k = seq(200, 300, 2)'), fig.show="hold", out.width="50%", echo=FALSE}
-knitr::include_graphics(c("images/Rplot_KnnTuning.png","images/Rplot_KnnTuning_k292.png"))
+```{r, eval=FALSE}
+train_set<-train_set%>%select(ECD,Latitude,Longitude,
+                              ITDescN,EC_Year,EC_Quarter,
+                              EC_Month,EC_Day,EC_Weekday)
+test_set<-test_set%>%select(ECD,Latitude,Longitude,
+                            ITDescN,EC_Year,EC_Quarter,
+                            EC_Month,EC_Day,EC_Weekday)
 ```
 
-We fit the model with following code:
-
-And the confusion matrix of the model trained with knn() algorithm is as follows:
-
-### Random Forest Training
+And following is the result for tuning and importance of final features chosen.
 
 ```{r, eval=FALSE}
 train_rf <-  train(train_set[, -1], factor(train_set[,1]),
                    method = "rf",
                    nTree = 500,
-                   tuneGrid = data.frame(mtry = seq(10, 100, 10)),
+                   tuneGrid = data.frame(mtry = seq(10, 200, 10)),
                    nSamp = 10000)
 
 train_rf$bestTune%>%knitr::kable()
 ```
 
-|   | mtry|
-|:--|----:|
-|4  |   40|
+ Sample    | 10'000    |     50'000    |   100'000
+ -------   | -------   |    --------   |    --------
+  mtry     |     130   |         170   |         170
 
-```{r,plot-knn-tuning, fig.cap='Random Forest Parameter Tuning', fig.subcap=c('ntree = 100','ntree = 500'), fig.show="hold", out.width="50%", echo=FALSE}
-knitr::include_graphics(c("images/Rplot_RF_MTry_Ntree100_nSamp10000_LatLongITDescNECDay.png","images/Rplot_RF_MTry_Ntree500_nSamp10000_LatLongITDescNECDay.png"))
+Final training script ran 1:20 hours for 100'000 data.
+
+```{r,plot-rf-tuning, fig.cap='Random Forest Parameter Tuning', fig.subcap=c('Sample 10.000','Sample 50.000','Sample 100.000'), fig.show="hold", out.width="30%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot_RF_MTry_Ntree500_nSamp10000_LatLongITDescNEC_YearEC_QuarterEC_MonthEC_DayEC_Weekday_Mtry10_200_data10000.png","images/Rplot_RF_MTry_Ntree500_nSamp10000_ECCLatLongITDescNEC_YearEC_QuarterEC_MonthEC_DayEC_Weekday_Mtry10_200_data50000.png","images/Rplot_RF_MTry_Ntree500_nSamp10000_ECCLatLongITDescNEC_YearEC_QuarterEC_MonthEC_DayEC_Weekday_Mtry10_200_data100000.png"))
 ```
 
 ```{r, eval=FALSE}
 varImp(train_rf)
 ```
 
-rf variable importance
+|             |   10'000    |   50'000   |  100'000   |
+| ----------  | ----------  | ---------- | ---------- |
+| ITDescN     |   100.00    |   100.00   |   100.00   |
+| Latitude    |    50.60    |    49.79   |    48.84   |
+| Longitude   |    49.55    |    49.69   |    48.43   |
+| EC_Day      |    35.14    |    38.84   |    41.14   |
+| EC_Month    |    19.71    |    20.60   |    21.23   |
+| EC_Weekday  |    19.04    |    19.39   |    21.11   |
+| EC_Year     |    12.98    |    12.81   |    11.93   |
+| EC_Quarter  |     0.00    |     0.00   |     0.00   |
 
-          Overall
-ITDescN    100.00
-Latitude    48.01
-Longitude   46.67
-EC_Day       0.00
+We see that we can drop the EC_Quarter least important feature.
+
+Now we are fitting the random tree with *ntree=500* and with a tuned parameter *mtry=170*. This script ran about 3 minutes.
 
 ```{r, eval=FALSE}
 library(randomForest)
-fit_rf <- randomForest(train_set[, -1], factor(train_set[,1]),ntree=500)
-y_hat_rf <- predict(fit_rf, test_set[ ,-1])
-cm <- confusionMatrix(y_hat_rf, factor(test_set[,1]))
-cm$overall["Accuracy"]
+fit_rf <- randomForest(train_set[, -1], factor(train_set[,1]), ntree = 500, mtry = 170)
+importance(fit_rf)
+```
+|             | MeanDecreaseGini|
+|------------ | --------------- |
+|Latitude     |     10822.851   |
+|Longitude    |     10606.341   |
+|ITDescN      |     14806.409   |
+|EC_Year      |     3148.856    |
+|EC_Quarter   |     1668.354    |
+|EC_Month     |     4617.753    |
+|EC_Day       |     7936.642    |
+|EC_Weekday   |     4841.357    |
+
+```{r, eval=FALSE}
+varImpPlot(fit_rf,type=2)
 ```
 
-Accuracy 
-0.3646139
+And with a plot, we see that variable importance order is the same as varImp() function results with train_rf.
+
+```{r,plot-rf-importance, fig.cap='Random Forest Variable Importance', fig.show="hold", out.width="80%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot_varImpPlot.png"))
+```
+
+```{r, eval=FALSE}
+y_hat_rf <- predict(fit_rf, test_set[ ,-1])
+cm <- confusionMatrix(y_hat_rf, factor(test_set[,1]))
+cm$overall
+```
+
+|               |         x|
+|---------------|----------|
+|Accuracy       | 0.4417398|
+|Kappa          | 0.4100457|
+|AccuracyLower  | 0.4348497|
+|AccuracyUpper  | 0.4486469|
+|AccuracyNull   | 0.1135275|
+|AccuracyPValue | 0.0000000|
+|McnemarPValue  |       NaN|
+
+
+### Knn algorithm
+
+Tuning for 8 Features and k=seq(10,100,10). Training algorithm ran 67 minutes for this tuning range. Although, this tuning yielded inconclusive results.
+
+```{r, eval=FALSE}
+train_knn <- train(train_set[ ,-1], factor(train_set[,1]),
+                   method = "knn",
+                   tuneGrid = data.frame(k = seq(10, 300, 10)))
+train_knn$bestTune%>%knitr::kable()
+```
+
+|   |   k|
+|---|----|
+|2  | 410|
+
+Tried again with 3 Features and k=seq(10,100,10). Final training script ran 192 minutes for 100'000 data.
+
+```{r, eval=FALSE}
+train_set<-train_set%>%select(ECD,Latitude,Longitude,ITDescN)
+test_set<-test_set%>%select(ECD,Latitude,Longitude,ITDescN)
+
+train_knn <- train(train_set[ ,-1], factor(train_set[,1]),
+                   method = "knn",
+                   tuneGrid = data.frame(k = seq(10, 300, 10)))
+train_knn$bestTune%>%knitr::kable()
+max(train_knn$results$Accuracy)%>%knitr::kable()
+```
+
+|   |  k|         x|
+| --|-- |--------- |
+|5  | 50| 0.4391884|
+
+```{r,plot-knn-tuning, fig.cap='knn Parameter Tuning', fig.show="hold", out.width="80%", echo=FALSE}
+knitr::include_graphics(c("images/Rplot_KnnTraining3Features.png"))
+```
 
 \newpage
 
-# Conclusion and Further Use
+# Conclusion
 
-We have trained basic and not-so-precise machine-learning algorithm. Accuracy, Sensitivity and Specifity results should be improved further for better use in real life.
+We have trained basic and not-so-precise machine-learning algorithm. Accuracy results should be improved further for better use in real life. For now, we have not progressed above 0.44. It is not a good result.
+
+## About the Similarity between 911 calls and 103 calls
 
 There is a similarity between records of US 911 and Mongolian 102 (Police Hotline), 103 (Medical Emergency Number) records. People describe the symptoms of the situation, and the operator spends some time evaluating the situation by asking questions. In many of the cases, both people in distress and the call receiving operator fail to describe the situation properly.
 
@@ -695,6 +771,10 @@ Mobile technology, government regulations restrict Mongolia from tracking the ph
 As mobile phones dominate the field, and people have unlimited access to smart phones, the calls should be considered to be done from mobile phones. If such project should be initiated, we would need access to mobile operators' VLR info, and we would need the VLR info to be gathered regularly or on demand.
 
 Even better solution would be creating an app for mobile phones that uses improved machine-learning algorithm. But we still would need the trained prediction run on the 102, 103 operators' side. Therefore the predicting function should be offered as an API available for developers to use.
+
+## Plan for further use of data
+
+I will continue on with this project and try out new models to improve accuracy. Further, I am considering simulating phone numbers and call Timestamp field based on AS_DateTime field. I think it will help prepare for real-life data and will add a possibility to predict emergency levels of calls. Also it will help achieve one of this Project's initial goals - which is to recognize prank calls - that was sadly not achieved for now.
 
 \newpage
 

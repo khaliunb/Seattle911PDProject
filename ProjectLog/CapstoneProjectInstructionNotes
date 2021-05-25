@@ -190,3 +190,21 @@ https://stackoverflow.com/questions/61546003/knitr-rmarkdown-figures-side-by-sid
 ---upload the files "Commit project progress with Random Forest Training results Khaliun.B 2021.05.23 23:01"
 -1. Commit files
 -2. Push files
+########################################
+### Khaliun.B 2021.05.24 08:59
+### We are trying to improve the overall accuracy of the Random forest
+########################################
+########################################
+### Khaliun.B 2021.05.25 20:50
+### We have finished the preliminary report and script. I think we will upload this project now to edx
+########################################
+--- Backing up some unused script here
+varimp_knn<-varImp(train_knn)
+#Please not that we used following command in Terminal to process the resulting data
+###cat knn_10_300_varimp | tr "\n" "," | tr "$" "\n" | tr "[1]" " "
+#knn_varimp<-read_csv("data/knn_10_300_varimp.txt")
+#knn_varimp<-as.data.frame(knn_varimp)
+--- Polishing the Final Report
+---upload the files "Commit project final results Khaliun.B 2021.05.25 21:39"
+-1. Commit files
+-2. Push files
