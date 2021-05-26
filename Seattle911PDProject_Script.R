@@ -3,6 +3,13 @@
 #The original data used for this project is zipped and located in Github repository
 # https://github.com/khaliunb/Seattle911PDProject/blob/main/data/SeattlePD911IR_80_MB.zip
 #########################################################################################
+
+# This part of the code installs required packages for the project if not installed previously: Commented by Khaliun.B 2021.04.11 
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org")
+#
+
 library(tidyverse)
 library(caret)
 library(lubridate)
