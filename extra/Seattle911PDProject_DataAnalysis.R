@@ -3,39 +3,38 @@ source("../Seattle911PDProject_Script.R", local = knitr::knit_global())
 ####################################################################################
 #### Creating k-means clusters for ECD~ILoc pair
 ####################################################################################
-#set.seed(1)
-#ECDILocMatrix<-S911IR%>%group_by(ECD,ILoc)%>%summarise(count=as.integer(n()))%>%select(ECD,ILoc,count)%>%arrange(count)%>%spread(key=ECD,value=count,fill = 0)
-#ECDILocMatrix<-as.matrix(ECDILocMatrix)
-#rownames(ECDILocMatrix)<- ECDILocMatrix[,1]
-#ECDILocMatrix<- ECDILocMatrix[,-1]
-#mode(ECDILocMatrix)<-"integer"
-#rownamesECDILocMatrix<- rownames(ECDILocMatrix)
-#ECDILocMatrix<- ECDILocMatrix[,-1]
-#ECDILocMatrix<- sweep(ECDILocMatrix, 1, rowMeans(ECDILocMatrix, na.rm = TRUE))
-#ECDILocMatrix<- sweep(ECDILocMatrix, 2, colMeans(ECDILocMatrix, na.rm = TRUE))
-#ECDILocMatrix<-pmax(ECDILocMatrix,0)
-#rownames(ECDILocMatrix)<- rownamesECDILocMatrix
+set.seed(1)
+ECDILocMatrix<-S911IR%>%group_by(ECD,ILoc)%>%summarise(count=as.integer(n()))%>%select(ECD,ILoc,count)%>%arrange(count)%>%spread(key=ECD,value=count,fill = 0)
+ECDILocMatrix<-as.matrix(ECDILocMatrix)
+rownames(ECDILocMatrix)<- ECDILocMatrix[,1]
+ECDILocMatrix<- ECDILocMatrix[,-1]
+mode(ECDILocMatrix)<-"integer"
+rownamesECDILocMatrix<- rownames(ECDILocMatrix)
+ECDILocMatrix<- ECDILocMatrix[,-1]
+ECDILocMatrix<- sweep(ECDILocMatrix, 1, rowMeans(ECDILocMatrix, na.rm = TRUE))
+ECDILocMatrix<- sweep(ECDILocMatrix, 2, colMeans(ECDILocMatrix, na.rm = TRUE))
+ECDILocMatrix<-pmax(ECDILocMatrix,0)
+rownames(ECDILocMatrix)<- rownamesECDILocMatrix
 
-#k <- kmeans(ECDILocMatrix, centers = 100, nstart=25)
+k <- kmeans(ECDILocMatrix, centers = 100, nstart=25)
 
 #This part of the code assigns group ids calculated by 
 #kmeans to "groups" variable
-#groups <- factor(k$cluster)
-#temp_g<-data.frame(ILoc=names(groups))
+groups <- factor(k$cluster)
+temp_g<-data.frame(ILoc=names(groups))
 
 #Mutate group numbers back to the dataset
-#temp_g<-temp_g%>%mutate(ILocGroup=groups[names(groups)==.$ILoc])
+temp_g<-temp_g%>%mutate(ILocGroup=groups[names(groups)==.$ILoc])
 
 #Mutate groups back to original data
-#S911IR <- S911IR %>% 
-#  left_join(temp_g, by='ILoc')
+S911IR <- S911IR %>% 
+  left_join(temp_g, by='ILoc')
 
 #Removing unnecessary variables
-#rm(ECDILocMatrix,rownamesECDILocMatrix,temp_g)
+rm(ECDILocMatrix,rownamesECDILocMatrix,temp_g)
 ################################################################################
 #### END: This group of code performs kmeans clustering for ECD~ILoc pair
 ################################################################################
-
 
 #  - What is the overall picture of overall occurence of event clearance description? Also, do some ECDs prevail over others on daily basis? We will view the plots side by side to get a clear idea.
 S911IR%>%group_by(ECD)%>%summarise(overall = n()) %>%
